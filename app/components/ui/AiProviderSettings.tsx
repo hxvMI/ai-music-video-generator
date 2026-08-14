@@ -36,7 +36,7 @@ export default function AiProviderSettings({ connection, onChange }: Props) {
       onToggle={(event) => setIsOpen(event.currentTarget.open)}
     >
       <summary className="list-none">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-950 text-white">
               <KeyRound className="h-4 w-4" aria-hidden="true" />
@@ -50,7 +50,7 @@ export default function AiProviderSettings({ connection, onChange }: Props) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${isReady ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
               {isReady ? "Ready" : "Setup needed"}
             </span>

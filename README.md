@@ -4,6 +4,16 @@ A browser-based creator for turning an audio track, artwork, and track details
 into a reactive 1080p music video. The Remotion player is the official preview,
 so the composition shown in the editor uses the same data as the exported MP4.
 
+## Live Demo
+
+[Open AI Music Video Generator](https://ai-music-video-generator-nine.vercel.app/)
+
+## Screenshots
+
+### Creator workspace
+
+![AI Music Video Generator creator workspace](docs/screenshots/creator-workspace.png)
+
 ## Features
 
 - Drag-and-drop audio, background, and logo uploads

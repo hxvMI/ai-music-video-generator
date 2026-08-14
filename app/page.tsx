@@ -744,8 +744,8 @@ export default function HomePage() {
   };
 
   return (
-    <main data-ui-theme={interfaceTheme} className="app-shell min-h-screen px-4 py-5 text-gray-950 sm:px-6">
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-5">
+    <main data-ui-theme={interfaceTheme} className="app-shell min-h-screen overflow-x-hidden px-4 py-5 text-gray-950 sm:px-6">
+      <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-5">
         <header className="app-header flex flex-col gap-4 rounded-lg px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm font-semibold text-cyan-700">
@@ -795,7 +795,7 @@ export default function HomePage() {
 
         <div
           ref={creatorGridRef}
-          className="creator-grid grid gap-5 lg:h-[calc(100vh-10.5rem)] lg:min-h-[680px] lg:gap-0 lg:overflow-hidden"
+          className="creator-grid grid w-full min-w-0 max-w-full gap-5 lg:h-[calc(100vh-10.5rem)] lg:min-h-[680px] lg:gap-0 lg:overflow-hidden"
           style={{ "--editor-width": `${editorWidth}px` } as CSSProperties}
         >
           <section className="workspace-column editor-column min-w-0 overflow-x-hidden flex flex-col gap-4 lg:h-full lg:overflow-y-auto lg:pr-3">

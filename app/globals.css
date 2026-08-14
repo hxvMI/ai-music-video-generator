@@ -142,6 +142,14 @@ input[type="checkbox"] {
   border-radius: 8px;
 }
 
+.creator-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.creator-grid > section {
+  min-width: 0;
+}
+
 @media (min-width: 1024px) {
   .editor-column {
     border-right: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
