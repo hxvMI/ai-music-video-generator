@@ -1,0 +1,465 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4f6f8;
+  --foreground: #172026;
+  --surface: #ffffff;
+  --surface-subtle: #f8fafb;
+  --border: #dce3e8;
+  --border-strong: #c9d4db;
+  --accent: #087f8c;
+  --focus: rgba(8, 127, 140, 0.18);
+  --shell-top: #e8f0f2;
+  --shell-bottom: #f4f6f8;
+  --surface-raised: #ffffff;
+  --text-muted: #5d6b73;
+  --accent-soft: #e6f5f6;
+  --accent-border: #9bcdd1;
+  --panel-shadow: 0 1px 2px rgba(23, 32, 38, 0.06), 0 10px 28px rgba(23, 32, 38, 0.055);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  letter-spacing: 0;
+}
+
+* {
+  scrollbar-color: #b8c5cc transparent;
+  scrollbar-width: thin;
+}
+
+button,
+select,
+textarea,
+input {
+  font: inherit;
+}
+
+button,
+summary,
+select,
+input[type="range"],
+input[type="color"] {
+  cursor: pointer;
+}
+
+button:focus-visible,
+summary:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+select,
+textarea,
+input[type="text"] {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+select:hover,
+textarea:hover,
+input[type="text"]:hover {
+  border-color: #9cadb7;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+.app-shell {
+  background: linear-gradient(180deg, var(--shell-top) 0, var(--shell-bottom) 300px);
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.app-shell[data-ui-theme="graphite"] {
+  --background: #171b20;
+  --foreground: #edf2f4;
+  --surface: #242a30;
+  --surface-raised: #2b3239;
+  --surface-subtle: #1d2227;
+  --border: #3d4750;
+  --border-strong: #586570;
+  --accent: #35c1cc;
+  --accent-soft: #193b40;
+  --accent-border: #3e8990;
+  --focus: rgba(53, 193, 204, 0.28);
+  --shell-top: #111519;
+  --shell-bottom: #1a2025;
+  --text-muted: #aab5bc;
+  --panel-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 30px rgba(0, 0, 0, 0.22);
+}
+
+.app-shell[data-ui-theme="contrast"] {
+  --background: #f5f7fa;
+  --foreground: #0b1720;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-subtle: #edf2f5;
+  --border: #9aaab5;
+  --border-strong: #536773;
+  --accent: #006b78;
+  --accent-soft: #d9f3f5;
+  --accent-border: #007d8a;
+  --focus: rgba(0, 107, 120, 0.32);
+  --shell-top: #dfe9ed;
+  --shell-bottom: #f5f7fa;
+  --text-muted: #3f515c;
+  --panel-shadow: 0 2px 0 rgba(11, 23, 32, 0.12), 0 8px 18px rgba(11, 23, 32, 0.08);
+}
+
+.app-header {
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  box-shadow: var(--panel-shadow);
+}
+
+.app-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--panel-shadow);
+}
+
+.workspace-column {
+  border-radius: 8px;
+}
+
+@media (min-width: 1024px) {
+  .editor-column {
+    border-right: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  }
+
+  .preview-column {
+    background: color-mix(in srgb, var(--surface-subtle) 58%, transparent);
+  }
+}
+
+.workflow-step {
+  border-left: 4px solid var(--accent-border);
+}
+
+.workflow-step-icon {
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.workflow-step {
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.workflow-step:focus-within {
+  border-color: #a9cdd1;
+  box-shadow: 0 0 0 3px var(--focus), 0 8px 24px rgba(23, 32, 38, 0.05);
+}
+
+.editor-disclosure {
+  overflow: clip;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.editor-disclosure:hover {
+  border-color: var(--border-strong);
+}
+
+.editor-disclosure[open] {
+  border-color: var(--accent-border);
+  box-shadow: 0 4px 14px rgba(23, 32, 38, 0.045);
+}
+
+.editor-disclosure > summary {
+  padding: 14px 16px;
+}
+
+.editor-disclosure-content {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 16px;
+}
+
+.advanced-disclosure {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--panel-shadow);
+}
+
+.interface-theme-picker {
+  display: inline-grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  padding: 3px;
+}
+
+.interface-theme-picker button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  border-radius: 5px;
+  padding: 0 9px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 650;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.interface-theme-picker button:hover {
+  color: var(--foreground);
+}
+
+.interface-theme-picker button.is-active {
+  background: var(--surface-raised);
+  color: var(--accent);
+  box-shadow: 0 1px 4px rgba(17, 24, 39, 0.16);
+}
+
+/* Native controls and command buttons need enough contrast to read as actions. */
+.app-shell select,
+.app-shell textarea,
+.app-shell input[type="text"],
+.app-shell input[type="password"],
+.app-shell input[type="number"] {
+  min-height: 40px;
+  border-color: var(--border-strong) !important;
+  background: var(--surface-raised) !important;
+  color: var(--foreground) !important;
+  box-shadow: inset 0 1px 1px rgba(17, 24, 39, 0.035);
+}
+
+.app-shell select:hover,
+.app-shell textarea:hover,
+.app-shell input[type="text"]:hover,
+.app-shell input[type="password"]:hover {
+  border-color: var(--accent-border) !important;
+}
+
+.app-shell button:not(:disabled) {
+  transition: transform 120ms ease, border-color 140ms ease, background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.app-shell button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.editor-disclosure > summary:hover,
+.advanced-disclosure:hover {
+  background: color-mix(in srgb, var(--accent-soft) 42%, var(--surface));
+}
+
+.info-callout {
+  border: 1px solid #a7d9de;
+  background: #e8f7f8;
+  color: #164d55;
+}
+
+.info-callout svg {
+  color: #087f8c;
+}
+
+.selectable-card {
+  color: var(--foreground);
+}
+
+.selectable-card.is-selected {
+  border-color: #087f8c !important;
+  background: #dff3f5 !important;
+  box-shadow: inset 0 0 0 1px #087f8c, 0 3px 10px rgba(8, 127, 140, 0.12);
+}
+
+.selectable-card.is-selected .text-gray-950 {
+  color: #092f35 !important;
+}
+
+.selectable-card.is-selected .text-gray-600 {
+  color: #315d63 !important;
+}
+
+/* Tailwind neutral colors become theme-aware while semantic status colors stay intact. */
+.app-shell[data-ui-theme="graphite"] .bg-white { background-color: var(--surface-raised) !important; }
+.app-shell[data-ui-theme="graphite"] .bg-gray-50,
+.app-shell[data-ui-theme="graphite"] .bg-gray-100 { background-color: var(--surface-subtle) !important; }
+.app-shell[data-ui-theme="graphite"] .text-gray-950,
+.app-shell[data-ui-theme="graphite"] .text-gray-800 { color: #f5f8f9 !important; }
+.app-shell[data-ui-theme="graphite"] .text-gray-700 { color: #d5dfe3 !important; }
+.app-shell[data-ui-theme="graphite"] .text-gray-600 { color: #bdc9cf !important; }
+.app-shell[data-ui-theme="graphite"] .text-gray-500,
+.app-shell[data-ui-theme="graphite"] .text-gray-400 { color: #9fadb5 !important; }
+.app-shell[data-ui-theme="graphite"] .border-gray-200,
+.app-shell[data-ui-theme="graphite"] .border-gray-300 { border-color: var(--border) !important; }
+.app-shell[data-ui-theme="graphite"] .bg-gray-950 { background-color: #0e1215 !important; }
+.app-shell[data-ui-theme="graphite"] .text-cyan-700,
+.app-shell[data-ui-theme="graphite"] .text-cyan-800,
+.app-shell[data-ui-theme="graphite"] .text-cyan-900,
+.app-shell[data-ui-theme="graphite"] .text-cyan-950 { color: #7bdce3 !important; }
+
+.app-shell[data-ui-theme="graphite"] .info-callout {
+  border-color: #397b83;
+  background: #17363b;
+  color: #ffffff;
+}
+
+.app-shell[data-ui-theme="graphite"] .info-callout svg {
+  color: #ffffff;
+}
+
+.app-shell[data-ui-theme="graphite"] .info-callout [data-status-tone="waiting"] svg {
+  color: #92400e;
+}
+
+.app-shell[data-ui-theme="graphite"] .info-callout .text-cyan-900,
+.app-shell[data-ui-theme="graphite"] .info-callout .text-cyan-950 {
+  color: #ffffff !important;
+}
+
+.app-shell[data-ui-theme="graphite"] .selectable-card.is-selected {
+  border-color: #55ced7 !important;
+  background: #174047 !important;
+  box-shadow: inset 0 0 0 1px #55ced7, 0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+.app-shell[data-ui-theme="graphite"] .selectable-card.is-selected .text-gray-950 {
+  color: #f2fcfd !important;
+}
+
+.app-shell[data-ui-theme="graphite"] .selectable-card.is-selected .text-gray-600 {
+  color: #c3e4e7 !important;
+}
+
+.app-shell[data-ui-theme="graphite"] .playback-skip,
+.app-shell[data-ui-theme="graphite"] .playback-skip svg {
+  color: #ffffff !important;
+}
+
+.app-shell[data-ui-theme="graphite"] .project-loading-status,
+.app-shell[data-ui-theme="graphite"] .project-loading-status svg {
+  color: #000000 !important;
+}
+
+.app-shell[data-ui-theme="graphite"] .playback-skip {
+  border-color: #6d7c86;
+  background: #2f373e;
+}
+
+.app-shell[data-ui-theme="contrast"] .app-panel,
+.app-shell[data-ui-theme="contrast"] .editor-disclosure {
+  border-width: 2px;
+}
+
+.app-shell[data-ui-theme="contrast"] .text-gray-950,
+.app-shell[data-ui-theme="contrast"] .text-gray-800 {
+  color: #07131b !important;
+}
+
+.app-shell[data-ui-theme="contrast"] .text-gray-700 {
+  color: #172b36 !important;
+}
+
+.app-shell[data-ui-theme="contrast"] .text-gray-600 {
+  color: #29414d !important;
+}
+
+.app-shell[data-ui-theme="contrast"] .text-gray-500,
+.app-shell[data-ui-theme="contrast"] .text-gray-400 {
+  color: #405b68 !important;
+}
+
+.app-shell[data-ui-theme="contrast"] .text-cyan-700,
+.app-shell[data-ui-theme="contrast"] .text-cyan-800,
+.app-shell[data-ui-theme="contrast"] .text-cyan-900,
+.app-shell[data-ui-theme="contrast"] .text-cyan-950 {
+  color: #004f5a !important;
+}
+
+.app-shell[data-ui-theme="contrast"] input::placeholder,
+.app-shell[data-ui-theme="contrast"] textarea::placeholder {
+  color: #526975;
+  opacity: 1;
+}
+
+.app-shell[data-ui-theme="contrast"] button:disabled,
+.app-shell[data-ui-theme="contrast"] input:disabled,
+.app-shell[data-ui-theme="contrast"] select:disabled {
+  opacity: 0.68 !important;
+}
+
+.app-shell[data-ui-theme="contrast"] .editor-disclosure > summary:hover,
+.app-shell[data-ui-theme="contrast"] .advanced-disclosure:hover {
+  background: #dff1f3;
+}
+
+.app-shell[data-ui-theme="contrast"] .info-callout {
+  border: 2px solid #006b78;
+  background: #e5f5f6;
+  color: #123b42;
+}
+
+.app-shell[data-ui-theme="contrast"] .selectable-card.is-selected {
+  border-color: #005a66 !important;
+  background: #ccebed !important;
+  box-shadow: inset 0 0 0 1px #005a66;
+}
+
+@media (min-width: 1024px) {
+  .creator-grid {
+    grid-template-columns:
+      minmax(440px, min(var(--editor-width), calc(100% - 410px)))
+      10px
+      minmax(400px, 1fr);
+  }
+
+  .creator-grid > section {
+    scrollbar-gutter: stable;
+  }
+}
+
+.column-resizer {
+  align-items: center;
+  align-self: stretch;
+  justify-content: center;
+  width: 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #82939d;
+  cursor: col-resize;
+  touch-action: none;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.column-resizer:hover,
+.column-resizer:focus-visible {
+  background: #dcebed;
+  color: #087f8c;
+}
+
+.reactive-editor label,
+.reactive-editor select,
+.reactive-editor input {
+  min-width: 0;
+  max-width: 100%;
+}
