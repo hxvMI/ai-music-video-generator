@@ -813,7 +813,7 @@ export default function HomePage() {
           className="creator-grid grid w-full min-w-0 max-w-full gap-5 lg:h-[calc(100vh-10.5rem)] lg:min-h-[680px] lg:gap-0 lg:overflow-hidden"
           style={{ "--editor-width": `${editorWidth}px` } as CSSProperties}
         >
-          <section className="workspace-column editor-column min-w-0 overflow-x-hidden flex flex-col gap-4 lg:h-full lg:overflow-y-auto lg:pr-3">
+          <section className="workspace-column editor-column min-w-0 overflow-x-hidden flex flex-col gap-4 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-3">
             <Panel className="p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-950 text-white">
@@ -1116,7 +1116,7 @@ export default function HomePage() {
             <GripVertical className="h-4 w-4" aria-hidden="true" />
           </button>
 
-          <section className="workspace-column preview-column min-w-0 flex flex-col gap-4 lg:h-full lg:overflow-y-auto lg:pl-3 lg:pr-1">
+          <section className="workspace-column preview-column min-w-0 flex flex-col gap-4 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pl-3 lg:pr-1">
             <RemotionPreviewPanel
               manifest={exportManifest}
               preparedAssets={preparedAssets}

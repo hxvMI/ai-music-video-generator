@@ -438,9 +438,11 @@ input[type="checkbox"] {
       minmax(440px, min(var(--editor-width), calc(100% - 410px)))
       10px
       minmax(400px, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .creator-grid > section {
+    min-height: 0;
     scrollbar-gutter: stable;
   }
 }
