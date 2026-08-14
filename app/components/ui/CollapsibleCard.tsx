@@ -11,6 +11,7 @@ type CollapsibleCardProps = {
   children: ReactNode;
   defaultOpen?: boolean;
   category?: string;
+  badge?: string;
   className?: string;
 };
 
@@ -21,6 +22,7 @@ export default function CollapsibleCard({
   children,
   defaultOpen = false,
   category,
+  badge,
   className = "",
 }: CollapsibleCardProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -39,7 +41,14 @@ export default function CollapsibleCard({
                 {category}
               </p>
             )}
-            <p className="text-sm font-semibold text-gray-950">{title}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-gray-950">{title}</p>
+              {badge && (
+                <span className="rounded border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-900">
+                  {badge}
+                </span>
+              )}
+            </div>
             {description && (
               <p className="mt-1 text-xs text-gray-500">{description}</p>
             )}

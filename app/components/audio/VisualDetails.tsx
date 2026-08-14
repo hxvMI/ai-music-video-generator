@@ -539,6 +539,7 @@ export default function VisualDetails({
 
         <CollapsibleCard
           title="Reactive Timeline"
+          badge="Alpha"
           category="Animation"
           className="order-5"
           description="Auto mode changes motion and effects across song sections."
@@ -1014,6 +1015,7 @@ export default function VisualDetails({
 
         <CollapsibleCard
           title="Captions"
+          badge="Alpha"
           category="Text"
           className="order-8"
           description="Add timed lyric lines or automatic beat/drop callouts."

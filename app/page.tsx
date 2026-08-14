@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { FileText, GripVertical, Music, Palette, RotateCcw, Sparkles } from "lucide-react";
+import { Code2, FileText, GripVertical, Music, Palette, RotateCcw, Sparkles } from "lucide-react";
 
 import AudioUploader from "@/components/audio/AudioUploaderComponent";
 import DetailUploader from "@/components/audio/DetailUploader";
@@ -124,6 +124,7 @@ function getInterfaceTheme(): InterfaceTheme {
 }
 
 export default function HomePage() {
+  const [isDevMode, setIsDevMode] = useState(false);
   const creatorGridRef = useRef<HTMLDivElement>(null);
   const [editorWidth, setEditorWidth] = useState(680);
   const interfaceTheme = useSyncExternalStore(
@@ -766,6 +767,20 @@ export default function HomePage() {
             />
             <button
               type="button"
+              aria-pressed={isDevMode}
+              onClick={() => setIsDevMode((currentValue) => !currentValue)}
+              className={[
+                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition",
+                isDevMode
+                  ? "border-cyan-700 bg-cyan-700 text-white"
+                  : "border-gray-200 text-gray-700 hover:border-cyan-300 hover:text-cyan-800",
+              ].join(" ")}
+            >
+              <Code2 aria-hidden="true" className="h-4 w-4" />
+              Dev Mode
+            </button>
+            <button
+              type="button"
               disabled={!hasProjectContent}
               onClick={resetProject}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-cyan-300 hover:text-cyan-800 disabled:cursor-not-allowed disabled:opacity-50"
@@ -854,9 +869,14 @@ export default function HomePage() {
               <div className="info-callout mt-4 rounded-lg border border-cyan-100 bg-cyan-50 p-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-cyan-950">
-                      Auto Director
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-cyan-950">
+                        Auto Director
+                      </p>
+                      <span className="rounded border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-900">
+                        Alpha
+                      </span>
+                    </div>
                     <p className="mt-1 text-sm text-cyan-900">
                       {autoSetupSummary}
                     </p>
@@ -1132,19 +1152,21 @@ export default function HomePage() {
           </section>
         </div>
 
-        <DisclosureSection
-          title="Advanced Export Details"
-          description="Inspect the render manifest and technical export data."
-        >
-          <div className="grid gap-4">
-            <div className="lg:col-span-2">
-              <VideoExportManifestPanel
-                manifest={exportManifest}
-                blockingReasons={exportBlockingReasons}
-              />
+        {isDevMode && (
+          <DisclosureSection
+            title="Advanced Export Details"
+            description="Inspect the render manifest and technical export data."
+          >
+            <div className="grid gap-4">
+              <div className="lg:col-span-2">
+                <VideoExportManifestPanel
+                  manifest={exportManifest}
+                  blockingReasons={exportBlockingReasons}
+                />
+              </div>
             </div>
-          </div>
-        </DisclosureSection>
+          </DisclosureSection>
+        )}
       </div>
     </main>
   );
