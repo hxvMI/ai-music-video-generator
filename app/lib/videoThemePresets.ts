@@ -34,6 +34,25 @@ export type VideoThemePreset = {
 // Theme presets are configuration objects. They let us change behavior without
 // scattering "if theme is neon" checks through every preview/render component.
 export const VIDEO_THEME_PRESETS: Record<VideoTheme, VideoThemePreset> = {
+  none: {
+    label: "None / Unstyled",
+    description: "Shows the source background without theme filters, tinting, framing, or zoom.",
+    layout: "lower-left",
+    visualizerVariant: "minimal",
+    introEnd: 0,
+    titleStartY: 0,
+    titleStartScale: 1,
+    logoStart: 0,
+    logoEnd: 0,
+    overlayOpacity: 0,
+    textShadow: "none",
+    progressGlow: "none",
+    backgroundStartScale: 1,
+    backgroundEndScale: 1,
+    backgroundFilter: "none",
+    progressTrackOpacity: 0.28,
+    frameTreatment: "none",
+  },
   minimal: {
     label: "Minimal",
     description: "Clean lower-left title with restrained motion.",

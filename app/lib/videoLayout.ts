@@ -1,4 +1,28 @@
-import type { OverlayPosition, VideoLayoutConfig, VisualizerLayer } from "@/types/videoProject";
+import type {
+  OverlayPosition,
+  VideoFontFamily,
+  VideoLayoutConfig,
+  VisualizerLayer,
+} from "@/types/videoProject";
+
+export const VIDEO_FONT_OPTIONS: Array<{
+  value: VideoFontFamily;
+  label: string;
+}> = [
+  { value: "sans", label: "Modern Sans" },
+  { value: "serif", label: "Editorial Serif" },
+  { value: "mono", label: "Monospace" },
+  { value: "condensed", label: "Condensed" },
+  { value: "rounded", label: "Rounded" },
+];
+
+export const VIDEO_FONT_STACKS: Record<VideoFontFamily, string> = {
+  sans: "Arial, Helvetica, sans-serif",
+  serif: "Georgia, 'Times New Roman', serif",
+  mono: "'Courier New', Courier, monospace",
+  condensed: "'Arial Narrow', 'Roboto Condensed', Arial, sans-serif",
+  rounded: "'Trebuchet MS', 'Arial Rounded MT Bold', Arial, sans-serif",
+};
 
 export const DEFAULT_VISUALIZER_LAYER: VisualizerLayer = {
   id: "visualizer-primary",
@@ -17,13 +41,25 @@ export const DEFAULT_VISUALIZER_LAYER: VisualizerLayer = {
 };
 
 export const DEFAULT_VIDEO_LAYOUT: VideoLayoutConfig = {
+  showBackground: true,
   backgroundScale: 1,
   backgroundOffsetX: 0,
   backgroundOffsetY: 0,
+  fontFamily: "sans",
+  showTitle: true,
+  showArtist: true,
   titlePosition: "bottom-left",
   titleOffsetX: 0,
   titleOffsetY: 0,
   titleRotation: 0,
+  showLogo: true,
+  logoPosition: "top-right",
+  logoOffsetX: 0,
+  logoOffsetY: 0,
+  logoWidth: 180,
+  logoHeight: 180,
+  logoRotation: 0,
+  logoOpacity: 1,
   visualizerPosition: "bottom-left",
   visualizerOffsetX: 0,
   visualizerOffsetY: 0,
@@ -43,6 +79,7 @@ export const DEFAULT_VIDEO_LAYOUT: VideoLayoutConfig = {
   progressTimeOffsetX: 0,
   progressTimeOffsetY: 0,
   progressTimeRotation: 0,
+  progressTimeScale: 1,
 };
 
 export const OVERLAY_POSITION_OPTIONS: {
@@ -90,13 +127,25 @@ export function isDefaultVideoLayout(layout: VideoLayoutConfig) {
   const normalizedLayout = normalizeVideoLayout(layout);
 
   return (
+    normalizedLayout.showBackground === DEFAULT_VIDEO_LAYOUT.showBackground &&
     normalizedLayout.backgroundScale === DEFAULT_VIDEO_LAYOUT.backgroundScale &&
     normalizedLayout.backgroundOffsetX === DEFAULT_VIDEO_LAYOUT.backgroundOffsetX &&
     normalizedLayout.backgroundOffsetY === DEFAULT_VIDEO_LAYOUT.backgroundOffsetY &&
+    normalizedLayout.fontFamily === DEFAULT_VIDEO_LAYOUT.fontFamily &&
+    normalizedLayout.showTitle === DEFAULT_VIDEO_LAYOUT.showTitle &&
+    normalizedLayout.showArtist === DEFAULT_VIDEO_LAYOUT.showArtist &&
     normalizedLayout.titlePosition === DEFAULT_VIDEO_LAYOUT.titlePosition &&
     normalizedLayout.titleOffsetX === DEFAULT_VIDEO_LAYOUT.titleOffsetX &&
     normalizedLayout.titleOffsetY === DEFAULT_VIDEO_LAYOUT.titleOffsetY &&
     normalizedLayout.titleRotation === DEFAULT_VIDEO_LAYOUT.titleRotation &&
+    normalizedLayout.showLogo === DEFAULT_VIDEO_LAYOUT.showLogo &&
+    normalizedLayout.logoPosition === DEFAULT_VIDEO_LAYOUT.logoPosition &&
+    normalizedLayout.logoOffsetX === DEFAULT_VIDEO_LAYOUT.logoOffsetX &&
+    normalizedLayout.logoOffsetY === DEFAULT_VIDEO_LAYOUT.logoOffsetY &&
+    normalizedLayout.logoWidth === DEFAULT_VIDEO_LAYOUT.logoWidth &&
+    normalizedLayout.logoHeight === DEFAULT_VIDEO_LAYOUT.logoHeight &&
+    normalizedLayout.logoRotation === DEFAULT_VIDEO_LAYOUT.logoRotation &&
+    normalizedLayout.logoOpacity === DEFAULT_VIDEO_LAYOUT.logoOpacity &&
     normalizedLayout.visualizerPosition === DEFAULT_VIDEO_LAYOUT.visualizerPosition &&
     normalizedLayout.visualizerOffsetX === DEFAULT_VIDEO_LAYOUT.visualizerOffsetX &&
     normalizedLayout.visualizerOffsetY === DEFAULT_VIDEO_LAYOUT.visualizerOffsetY &&
@@ -117,5 +166,6 @@ export function isDefaultVideoLayout(layout: VideoLayoutConfig) {
     && normalizedLayout.progressTimeOffsetX === DEFAULT_VIDEO_LAYOUT.progressTimeOffsetX
     && normalizedLayout.progressTimeOffsetY === DEFAULT_VIDEO_LAYOUT.progressTimeOffsetY
     && normalizedLayout.progressTimeRotation === DEFAULT_VIDEO_LAYOUT.progressTimeRotation
+    && normalizedLayout.progressTimeScale === DEFAULT_VIDEO_LAYOUT.progressTimeScale
   );
 }

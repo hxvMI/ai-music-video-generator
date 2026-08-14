@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 
 import { useVideoEngine } from "../../hooks/useVideoEngine";
 import { getActiveVideoCaption } from "../../lib/videoCaptions";
+import { VIDEO_FONT_STACKS } from "../../lib/videoLayout";
 import type { VideoThemeLayout, VisualizerVariant } from "../../lib/videoThemePresets";
 import type {
   OverlayPosition,
@@ -24,6 +25,8 @@ type VideoSceneContentProps = {
 
 const STAGE_WIDTH = 1920;
 const STAGE_HEIGHT = 1080;
+const FRAME_TREATMENT_Z_INDEX = 10;
+const OVERLAY_CONTENT_Z_INDEX = 30;
 
 const titleStyles: Record<VideoThemeLayout, CSSProperties> = {
   "lower-left": {
@@ -41,27 +44,6 @@ const titleStyles: Record<VideoThemeLayout, CSSProperties> = {
     fontSize: 82,
     lineHeight: 1,
     fontWeight: 800,
-  },
-};
-
-const logoStyles: Record<VideoThemeLayout, CSSProperties> = {
-  "lower-left": {
-    top: 64,
-    right: 64,
-    width: 180,
-    height: 180,
-  },
-  "center-stage": {
-    top: 64,
-    right: 64,
-    width: 190,
-    height: 190,
-  },
-  "film-lower-left": {
-    top: 82,
-    right: 82,
-    width: 160,
-    height: 160,
   },
 };
 
@@ -425,9 +407,11 @@ export function VideoSceneContent({
     reactiveTimeline: style.reactiveTimeline,
     audioAnalysis,
   });
-  const hasSongTitle = metadata.songTitle.trim().length > 0;
-  const hasArtistName = metadata.artistName.trim().length > 0;
   const layout = style.layout;
+  const hasSongTitle =
+    layout.showTitle && metadata.songTitle.trim().length > 0;
+  const hasArtistName =
+    layout.showArtist && metadata.artistName.trim().length > 0;
   const titleFrameStyle = getOverlayFrameStyle({
     position: layout.titlePosition,
     offsetX: layout.titleOffsetX,
@@ -435,6 +419,15 @@ export function VideoSceneContent({
     width: themePreset.layout === "center-stage" ? 1320 : 1120,
   });
   titleFrameStyle.transform = `${titleFrameStyle.transform ?? ""} rotate(${layout.titleRotation ?? 0}deg)`.trim();
+  const logoFrameStyle = getOverlayFrameStyle({
+    position: layout.logoPosition,
+    offsetX: layout.logoOffsetX,
+    offsetY: layout.logoOffsetY,
+    width: layout.logoWidth,
+  });
+  logoFrameStyle.height = layout.logoHeight;
+  logoFrameStyle.transform = `${logoFrameStyle.transform ?? ""} rotate(${layout.logoRotation}deg)`.trim();
+  logoFrameStyle.transformOrigin = getOverlayTransformOrigin(layout.logoPosition);
   const progressFrameStyle = getOverlayFrameStyle({
     position: layout.progressPosition,
     offsetX: layout.progressOffsetX,
@@ -448,7 +441,10 @@ export function VideoSceneContent({
     offsetY: layout.progressTimeOffsetY,
     width: 360,
   });
-  progressTimeFrameStyle.transform = `${progressTimeFrameStyle.transform ?? ""} rotate(${layout.progressTimeRotation ?? 0}deg)`.trim();
+  progressTimeFrameStyle.transform = `${progressTimeFrameStyle.transform ?? ""} rotate(${layout.progressTimeRotation ?? 0}deg) scale(${layout.progressTimeScale})`.trim();
+  progressTimeFrameStyle.transformOrigin = getOverlayTransformOrigin(
+    layout.progressTimePosition
+  );
   // Progress styles are plain CSS values so this branch renders identically in
   // the browser Player and Remotion's server-side Chromium renderer.
   const progressStyle = layout.progressStyle ?? "solid";
@@ -483,10 +479,10 @@ export function VideoSceneContent({
         overflow: "hidden",
         backgroundColor: "black",
         color: "white",
-        fontFamily: "Arial, Helvetica, sans-serif",
+        fontFamily: VIDEO_FONT_STACKS[layout.fontFamily],
       }}
     >
-      {assetUrls.backgroundUrl && (
+      {layout.showBackground && assetUrls.backgroundUrl && (
         <div
           style={{
             position: "absolute",
@@ -555,6 +551,7 @@ export function VideoSceneContent({
               right: 0,
               height: "9%",
               backgroundColor: "black",
+              zIndex: FRAME_TREATMENT_Z_INDEX,
             }}
           />
           <div
@@ -565,27 +562,28 @@ export function VideoSceneContent({
               bottom: 0,
               height: "9%",
               backgroundColor: "black",
+              zIndex: FRAME_TREATMENT_Z_INDEX,
             }}
           />
         </>
       )}
 
-      {assetUrls.logoUrl && (
+      {layout.showLogo && assetUrls.logoUrl && (
         <div
           style={{
-            position: "absolute",
+            ...logoFrameStyle,
+            zIndex: OVERLAY_CONTENT_Z_INDEX,
             backgroundImage: `url("${assetUrls.logoUrl}")`,
             backgroundSize: "contain",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
-            opacity: animations.logoOpacity,
-            ...logoStyles[themePreset.layout],
+            opacity: animations.logoOpacity * layout.logoOpacity,
           }}
         />
       )}
 
       {(hasSongTitle || hasArtistName) && (
-        <div style={titleFrameStyle}>
+        <div style={{ ...titleFrameStyle, zIndex: OVERLAY_CONTENT_Z_INDEX }}>
           <div
             style={{
               opacity: animations.titleOpacity,
@@ -620,7 +618,7 @@ export function VideoSceneContent({
       )}
 
       {activeCaption && (
-        <div style={captionFrameStyle}>
+        <div style={{ ...captionFrameStyle, zIndex: OVERLAY_CONTENT_Z_INDEX }}>
           <div
             style={{
               display: "inline-block",
@@ -668,7 +666,10 @@ export function VideoSceneContent({
         });
 
         return (
-          <div key={layer.id} style={frameStyle}>
+          <div
+            key={layer.id}
+            style={{ ...frameStyle, zIndex: OVERLAY_CONTENT_Z_INDEX }}
+          >
             <div style={{ opacity: Math.max(animations.titleOpacity, 0.82) * layer.opacity, transform: `rotate(${layer.rotation ?? 0}deg) scale(${layer.scaleX}, ${layer.scaleY})`, transformOrigin: getOverlayTransformOrigin(layer.position) }}>
               <SceneVisualizer
                 color={layer.color ?? style.visualizerColor}
@@ -684,7 +685,7 @@ export function VideoSceneContent({
       })}
 
       {layout.showProgress && (
-        <div style={progressFrameStyle}>
+        <div style={{ ...progressFrameStyle, zIndex: OVERLAY_CONTENT_Z_INDEX }}>
           <div
             style={{
               width: "100%",
@@ -720,25 +721,25 @@ export function VideoSceneContent({
 
       {themePreset.frameTreatment === "side-matte" && (
         <>
-          <div style={{ position: "absolute", inset: "0 auto 0 0", width: "12%", backgroundColor: "black" }} />
-          <div style={{ position: "absolute", inset: "0 0 0 auto", width: "12%", backgroundColor: "black" }} />
+          <div style={{ position: "absolute", inset: "0 auto 0 0", width: "12%", backgroundColor: "black", zIndex: FRAME_TREATMENT_Z_INDEX }} />
+          <div style={{ position: "absolute", inset: "0 0 0 auto", width: "12%", backgroundColor: "black", zIndex: FRAME_TREATMENT_Z_INDEX }} />
         </>
       )}
 
       {themePreset.frameTreatment === "lower-panel" && (
-        <div style={{ position: "absolute", inset: "70% 0 0", backgroundColor: "rgba(0, 0, 0, 0.94)" }} />
+        <div style={{ position: "absolute", inset: "70% 0 0", backgroundColor: "rgba(0, 0, 0, 0.94)", zIndex: FRAME_TREATMENT_Z_INDEX }} />
       )}
 
       {themePreset.frameTreatment === "upper-panel" && (
-        <div style={{ position: "absolute", inset: "0 0 70%", backgroundColor: "rgba(0, 0, 0, 0.94)" }} />
+        <div style={{ position: "absolute", inset: "0 0 70%", backgroundColor: "rgba(0, 0, 0, 0.94)", zIndex: FRAME_TREATMENT_Z_INDEX }} />
       )}
 
       {themePreset.frameTreatment === "broadcast-frame" && (
-        <div style={{ position: "absolute", inset: 24, border: "18px solid rgba(0, 0, 0, 0.9)", boxShadow: "inset 0 0 0 3px rgba(255,255,255,0.32)" }} />
+        <div style={{ position: "absolute", inset: 24, border: "18px solid rgba(0, 0, 0, 0.9)", boxShadow: "inset 0 0 0 3px rgba(255,255,255,0.32)", zIndex: FRAME_TREATMENT_Z_INDEX }} />
       )}
 
       {layout.showProgressTime && (
-        <div style={progressTimeFrameStyle}>
+        <div style={{ ...progressTimeFrameStyle, zIndex: OVERLAY_CONTENT_Z_INDEX }}>
           <p style={{ margin: 0, fontSize: 26, fontVariantNumeric: "tabular-nums" }}>
             {formattedCurrentTime} / {formattedDuration}
           </p>

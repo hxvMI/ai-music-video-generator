@@ -1,4 +1,5 @@
 export type VideoTheme =
+  | "none"
   | "minimal"
   | "neon"
   | "cinematic"
@@ -70,6 +71,12 @@ export type OverlayPosition =
   | "bottom-left"
   | "bottom-center"
   | "bottom-right";
+export type VideoFontFamily =
+  | "sans"
+  | "serif"
+  | "mono"
+  | "condensed"
+  | "rounded";
 export type VisualizerLayer = {
   id: string;
   name: string;
@@ -86,13 +93,25 @@ export type VisualizerLayer = {
   reactivity: number;
 };
 export type VideoLayoutConfig = {
+  showBackground: boolean;
   backgroundScale: number;
   backgroundOffsetX: number;
   backgroundOffsetY: number;
+  fontFamily: VideoFontFamily;
+  showTitle: boolean;
+  showArtist: boolean;
   titlePosition: OverlayPosition;
   titleOffsetX: number;
   titleOffsetY: number;
   titleRotation: number;
+  showLogo: boolean;
+  logoPosition: OverlayPosition;
+  logoOffsetX: number;
+  logoOffsetY: number;
+  logoWidth: number;
+  logoHeight: number;
+  logoRotation: number;
+  logoOpacity: number;
   visualizerPosition: OverlayPosition;
   visualizerOffsetX: number;
   visualizerOffsetY: number;
@@ -112,6 +131,7 @@ export type VideoLayoutConfig = {
   progressTimeOffsetX: number;
   progressTimeOffsetY: number;
   progressTimeRotation: number;
+  progressTimeScale: number;
 };
 export type CaptionMode = "off" | "beat" | "lyrics";
 export type VideoCaptionConfig = {

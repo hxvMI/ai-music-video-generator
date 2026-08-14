@@ -2,6 +2,7 @@
 
 import { Player, type PlayerRef } from "@remotion/player";
 import { MonitorPlay } from "lucide-react";
+import { memo, useMemo } from "react";
 
 import MusicVideoComposition from "@/components/remotion/MusicVideoComposition";
 import Panel from "@/components/ui/Panel";
@@ -19,17 +20,17 @@ type RemotionPreviewPanelProps = {
   playerRef: (instance: PlayerRef | null) => void;
 };
 
-export default function RemotionPreviewPanel({
+function RemotionPreviewPanel({
   manifest,
   preparedAssets,
   blockingReasons,
   playerRef,
 }: RemotionPreviewPanelProps) {
   const isReady = blockingReasons.length === 0;
-  const compositionConfig = buildRemotionCompositionConfig({
-    manifest,
-    preparedAssets,
-  });
+  const compositionConfig = useMemo(
+    () => buildRemotionCompositionConfig({ manifest, preparedAssets }),
+    [manifest, preparedAssets]
+  );
 
   return (
     <Panel className="p-4">
@@ -97,3 +98,5 @@ export default function RemotionPreviewPanel({
     </Panel>
   );
 }
+
+export default memo(RemotionPreviewPanel);

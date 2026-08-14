@@ -29,6 +29,7 @@ import {
   DEFAULT_VISUALIZER_LAYER,
   normalizeVideoLayout,
   OVERLAY_POSITION_OPTIONS,
+  VIDEO_FONT_OPTIONS,
 } from "@/lib/videoLayout";
 import {
   DEFAULT_VIDEO_CAPTIONS,
@@ -46,6 +47,7 @@ import type {
   ReactiveZone,
   OverlayPosition,
   ProgressStyle,
+  VideoFontFamily,
   VideoCaptionConfig,
   VideoLayoutConfig,
 } from "@/types/videoProject";
@@ -595,12 +597,14 @@ export default function VisualDetails({
               <div key={layer.id} className="grid gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={layer.enabled}
-                      onChange={(event) => updateVisualizerLayer(layer.id, { enabled: event.target.checked })}
-                      aria-label={`Show ${layer.name}`}
-                    />
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={layer.enabled}
+                        onChange={(event) => updateVisualizerLayer(layer.id, { enabled: event.target.checked })}
+                      />
+                      Show
+                    </label>
                     <input
                       type="text"
                       value={layer.name}
@@ -761,6 +765,28 @@ export default function VisualDetails({
 
             <div className="grid gap-3 rounded-lg border bg-gray-50 p-3">
               <p className="text-sm font-semibold text-gray-950">Title Overlay</p>
+              <label className="grid gap-1 text-sm font-medium text-gray-700">
+                Video font
+                <select
+                  value={layout.fontFamily}
+                  onChange={(event) =>
+                    updateLayout(
+                      "fontFamily",
+                      event.target.value as VideoFontFamily
+                    )
+                  }
+                  className="rounded-lg border px-3 py-2 font-normal text-gray-950 outline-none focus:border-cyan-500"
+                >
+                  {VIDEO_FONT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs font-normal text-gray-500">
+                  Applies to the title, artist, captions, and video timer.
+                </span>
+              </label>
               <label className="grid gap-1 text-sm font-medium text-gray-700">
                 Title position
                 <select
@@ -977,6 +1003,10 @@ export default function VisualDetails({
                   Timer rotation {layout.progressTimeRotation}deg
                   <input type="range" min={-180} max={180} step={1} value={layout.progressTimeRotation} onChange={(event) => updateLayout("progressTimeRotation", Number(event.target.value))} />
                 </label>
+                <label className="grid gap-1 text-sm font-medium text-gray-700 sm:col-span-2">
+                  Timer scale {Math.round(layout.progressTimeScale * 100)}%
+                  <input type="range" min={0.5} max={3} step={0.05} value={layout.progressTimeScale} onChange={(event) => updateLayout("progressTimeScale", Number(event.target.value))} />
+                </label>
               </div>
             </div>
           </div>
@@ -990,8 +1020,27 @@ export default function VisualDetails({
           summary={captionSummary}
         >
           <div className="grid gap-4">
-            <div className="grid grid-cols-3 overflow-hidden rounded-lg border text-sm">
-              {captionModeOptions.map((option) => (
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input
+                type="checkbox"
+                checked={captions.mode !== "off"}
+                onChange={(event) =>
+                  updateCaptions(
+                    "mode",
+                    event.target.checked
+                      ? captions.lyricsText.trim()
+                        ? "lyrics"
+                        : "beat"
+                      : "off"
+                  )
+                }
+              />
+              Show captions
+            </label>
+
+            {captions.mode !== "off" && (
+            <div className="grid grid-cols-2 overflow-hidden rounded-lg border text-sm">
+              {captionModeOptions.filter((option) => option.value !== "off").map((option) => (
                 <button
                   key={option.value}
                   type="button"
@@ -1007,6 +1056,7 @@ export default function VisualDetails({
                 </button>
               ))}
             </div>
+            )}
 
             {captions.mode === "lyrics" && (
               <label className="grid gap-1 text-sm font-medium text-gray-700">

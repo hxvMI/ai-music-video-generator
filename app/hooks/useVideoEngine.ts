@@ -273,7 +273,9 @@ export function useVideoEngine({
   return getProgressBetween(currentTime, 0, themePreset.introEnd);
 }, [currentTime, themePreset.introEnd]);
 
-const titleOpacity = introProgress;
+// Keep branding readable on the paused first frame while retaining the intro
+// fade used by both the Remotion preview and the exported composition.
+const titleOpacity = lerp(0.55, 1, introProgress);
 
 const titleTranslateY = useMemo(() => {
   return lerp(themePreset.titleStartY, 0, introProgress);
@@ -284,7 +286,11 @@ const titleScale = useMemo(() => {
 }, [introProgress, themePreset.titleStartScale]);
 
 const logoOpacity = useMemo(() => {
-  return getProgressBetween(currentTime, themePreset.logoStart, themePreset.logoEnd);
+  return lerp(
+    0.55,
+    1,
+    getProgressBetween(currentTime, themePreset.logoStart, themePreset.logoEnd)
+  );
 }, [currentTime, themePreset.logoStart, themePreset.logoEnd]);
 
 const backgroundProgress = useMemo(() => {

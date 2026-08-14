@@ -68,9 +68,8 @@ export function usePreparedVideoAssets(
     return createPreparedAsset(project.assets.logoImage, logoUrl);
   }, [logoUrl, project.assets.logoImage]);
 
-  return {
-    audio,
-    background,
-    logo,
-  };
+  return useMemo(
+    () => ({ audio, background, logo }),
+    [audio, background, logo]
+  );
 }

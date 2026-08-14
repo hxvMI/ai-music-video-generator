@@ -15,11 +15,14 @@ import {
   BACKGROUND_PRESETS,
   getBackgroundPreset,
 } from "@/lib/backgroundStudio";
+import { OVERLAY_POSITION_OPTIONS } from "@/lib/videoLayout";
 import type {
   BackgroundGenerationProvider,
   BackgroundPresetId,
   BackgroundPromptFields,
   BackgroundSource,
+  OverlayPosition,
+  VideoLayoutConfig,
 } from "@/types/videoProject";
 
 // Was added for lifting up the State to accept props instead
@@ -36,6 +39,8 @@ type DetailUploaderProps = {
 
   logoImage: File | null;
   setLogoImage: React.Dispatch<React.SetStateAction<File | null>>;
+  layout: VideoLayoutConfig;
+  setLayout: React.Dispatch<React.SetStateAction<VideoLayoutConfig>>;
 
   backgroundImage: File | null;
   setBackgroundImage: React.Dispatch<React.SetStateAction<File | null>>;
@@ -76,6 +81,8 @@ export default function DetailUploader({
   setArtistName,
   logoImage,
   setLogoImage,
+  layout,
+  setLayout,
   backgroundImage,
   setBackgroundImage,
   backgroundSource,
@@ -122,6 +129,10 @@ export default function DetailUploader({
       [fieldName]: value,
     }));
   };
+  const updateLayout = <Key extends keyof VideoLayoutConfig>(
+    key: Key,
+    value: VideoLayoutConfig[Key]
+  ) => setLayout((currentLayout) => ({ ...currentLayout, [key]: value }));
 
   return (
     <div className={containerClass}>
@@ -141,8 +152,14 @@ export default function DetailUploader({
           defaultOpen
         >
           <div className="grid gap-4">
-            <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
-              Song title
+            <div className="grid gap-1">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-gray-700">Song title</span>
+                <label className="flex items-center gap-2 text-xs font-medium text-gray-700">
+                  <input type="checkbox" checked={layout.showTitle} onChange={(event) => updateLayout("showTitle", event.target.checked)} />
+                  Show
+                </label>
+              </div>
               <input
                 type="text"
                 placeholder="Midnight Drive"
@@ -150,10 +167,16 @@ export default function DetailUploader({
                 onChange={(e) => setSongTitle(e.target.value)}
                 className="rounded-lg border px-3 py-2 font-normal text-gray-950 outline-none focus:border-cyan-500"
               />
-            </label>
+            </div>
 
-            <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
-              Artist name
+            <div className="grid gap-1">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-gray-700">Artist name</span>
+                <label className="flex items-center gap-2 text-xs font-medium text-gray-700">
+                  <input type="checkbox" checked={layout.showArtist} onChange={(event) => updateLayout("showArtist", event.target.checked)} />
+                  Show
+                </label>
+              </div>
               <input
                 type="text"
                 placeholder="Artist or producer"
@@ -161,7 +184,7 @@ export default function DetailUploader({
                 onChange={(e) => setArtistName(e.target.value)}
                 className="rounded-lg border px-3 py-2 font-normal text-gray-950 outline-none focus:border-cyan-500"
               />
-            </label>
+            </div>
           </div>
         </CollapsibleCard>
 
@@ -172,6 +195,10 @@ export default function DetailUploader({
           defaultOpen
         >
           <div className="grid gap-4">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input type="checkbox" checked={layout.showBackground} onChange={(event) => updateLayout("showBackground", event.target.checked)} />
+              Show background
+            </label>
             <div className="grid grid-cols-2 overflow-hidden rounded-lg border text-sm">
               {(["generated", "upload"] as BackgroundSource[]).map((source) => (
                 <button
@@ -378,15 +405,68 @@ export default function DetailUploader({
           summary={logoImage?.name ?? "No logo attached"}
           defaultOpen
         >
-          <FileDropzone
-            label="Logo overlay"
-            description="Upload a transparent PNG or brand mark for the video frame."
-            accept={{
-              "image/*": [".png", ".jpg", ".jpeg", ".webp", ".svg"],
-            }}
-            selectedFile={logoImage}
-            onFileChange={setLogoImage}
-          />
+          <div className="grid gap-4">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input type="checkbox" checked={layout.showLogo} onChange={(event) => updateLayout("showLogo", event.target.checked)} />
+              Show logo
+            </label>
+            <FileDropzone
+              label="Logo overlay"
+              description="Upload a transparent PNG or brand mark for the video frame."
+              accept={{
+                "image/*": [".png", ".jpg", ".jpeg", ".webp", ".svg"],
+              }}
+              selectedFile={logoImage}
+              onFileChange={setLogoImage}
+            />
+
+            <label className="grid gap-1 text-sm font-medium text-gray-700">
+              Logo position
+              <select
+                value={layout.logoPosition}
+                onChange={(event) =>
+                  updateLayout(
+                    "logoPosition",
+                    event.target.value as OverlayPosition
+                  )
+                }
+                className="rounded-lg border px-3 py-2 font-normal text-gray-950 outline-none focus:border-cyan-500"
+              >
+                {OVERLAY_POSITION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1 text-sm font-medium text-gray-700">
+                Horizontal offset {layout.logoOffsetX}px
+                <input type="range" min={-900} max={900} step={5} value={layout.logoOffsetX} onChange={(event) => updateLayout("logoOffsetX", Number(event.target.value))} />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-gray-700">
+                Vertical offset {layout.logoOffsetY}px
+                <input type="range" min={-600} max={600} step={5} value={layout.logoOffsetY} onChange={(event) => updateLayout("logoOffsetY", Number(event.target.value))} />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-gray-700">
+                Width {layout.logoWidth}px
+                <input type="range" min={40} max={900} step={10} value={layout.logoWidth} onChange={(event) => updateLayout("logoWidth", Number(event.target.value))} />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-gray-700">
+                Height {layout.logoHeight}px
+                <input type="range" min={40} max={900} step={10} value={layout.logoHeight} onChange={(event) => updateLayout("logoHeight", Number(event.target.value))} />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-gray-700">
+                Rotation {layout.logoRotation}deg
+                <input type="range" min={-180} max={180} step={1} value={layout.logoRotation} onChange={(event) => updateLayout("logoRotation", Number(event.target.value))} />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-gray-700">
+                Opacity {Math.round(layout.logoOpacity * 100)}%
+                <input type="range" min={0} max={1} step={0.05} value={layout.logoOpacity} onChange={(event) => updateLayout("logoOpacity", Number(event.target.value))} />
+              </label>
+            </div>
+          </div>
         </CollapsibleCard>
       </div>
     </div>

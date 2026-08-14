@@ -279,7 +279,9 @@ export default function HomePage() {
     connection: aiConnection,
   });
 
-  const videoProject = useMemo<VideoProject>(() => {
+  // Render inputs must remain stable during playback. Current time belongs to
+  // Remotion's Player, not the manifest handed back to that Player each frame.
+  const renderProject = useMemo<VideoProject>(() => {
     return {
       metadata: {
         songTitle,
@@ -310,9 +312,9 @@ export default function HomePage() {
         captions: videoCaptions,
       },
       playback: {
-        currentTime,
+        currentTime: 0,
         duration,
-        isPlaying,
+        isPlaying: false,
       },
       audioAnalysis,
     };
@@ -326,11 +328,9 @@ export default function HomePage() {
     backgroundSource,
     backgroundGeneration,
     cameraPreset,
-    currentTime,
     duration,
     effectPreset,
     generatedBackgroundUrl,
-    isPlaying,
     logoImage,
     randomSeed,
     reactiveTimeline,
@@ -344,14 +344,14 @@ export default function HomePage() {
   ]);
 
   const exportManifest = useMemo(() => {
-    return buildVideoExportManifest(videoProject);
-  }, [videoProject]);
+    return buildVideoExportManifest(renderProject);
+  }, [renderProject]);
 
   const exportBlockingReasons = useMemo(() => {
     return getVideoExportBlockingReasons(exportManifest);
   }, [exportManifest]);
 
-  const preparedAssets = usePreparedVideoAssets(videoProject);
+  const preparedAssets = usePreparedVideoAssets(renderProject);
   const audioMissingItems = [
     !audioFile ? "Audio file" : null,
     audioFile && duration <= 0 ? "Duration" : null,
@@ -1006,6 +1006,8 @@ export default function HomePage() {
                 setArtistName={setArtistName}
                 logoImage={logoImage}
                 setLogoImage={setLogoImage}
+                layout={videoLayout}
+                setLayout={setVideoLayout}
                 backgroundImage={backgroundImage}
                 setBackgroundImage={setBackgroundImage}
                 backgroundSource={backgroundSource}
@@ -1118,7 +1120,7 @@ export default function HomePage() {
             <VideoRenderActions
               manifest={exportManifest}
               preparedAssets={preparedAssets}
-              assetFiles={videoProject.assets}
+              assetFiles={renderProject.assets}
               blockingReasons={exportBlockingReasons}
               currentTime={currentTime}
             />

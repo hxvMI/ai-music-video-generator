@@ -1,7 +1,7 @@
 "use client";
 
 import type { PlayerRef } from "@remotion/player";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type PreviewTransportOptions = {
   duration: number;
@@ -34,6 +34,7 @@ export function usePreviewTransport({
   const [transportState, setTransportState] = useState(
     INITIAL_TRANSPORT_STATE
   );
+  const lastPublishedTimeRef = useRef(-1);
 
   const playerRef = useCallback((instance: PlayerRef | null) => {
     setPlayer(instance);
@@ -43,9 +44,24 @@ export function usePreviewTransport({
     if (!player) return;
 
     const updateTime = ({ detail }: { detail: { frame: number } }) => {
+      const nextTime = detail.frame / fps;
+
+      // External controls do not need frame-rate updates. Publishing at 10 Hz
+      // keeps their timestamp fluid without rerendering the entire editor 30
+      // times per second while Remotion continues playback at full frame rate.
+      if (Math.abs(nextTime - lastPublishedTimeRef.current) < 0.1) return;
+      lastPublishedTimeRef.current = nextTime;
       setTransportState((currentState) => ({
         ...currentState,
-        currentTime: detail.frame / fps,
+        currentTime: nextTime,
+      }));
+    };
+    const handleSeeked = ({ detail }: { detail: { frame: number } }) => {
+      const nextTime = detail.frame / fps;
+      lastPublishedTimeRef.current = nextTime;
+      setTransportState((currentState) => ({
+        ...currentState,
+        currentTime: nextTime,
       }));
     };
     const handlePlay = () => {
@@ -79,7 +95,7 @@ export function usePreviewTransport({
     };
 
     player.addEventListener("timeupdate", updateTime);
-    player.addEventListener("seeked", updateTime);
+    player.addEventListener("seeked", handleSeeked);
     player.addEventListener("play", handlePlay);
     player.addEventListener("pause", handlePause);
     player.addEventListener("ended", handleEnded);
@@ -87,7 +103,7 @@ export function usePreviewTransport({
 
     return () => {
       player.removeEventListener("timeupdate", updateTime);
-      player.removeEventListener("seeked", updateTime);
+      player.removeEventListener("seeked", handleSeeked);
       player.removeEventListener("play", handlePlay);
       player.removeEventListener("pause", handlePause);
       player.removeEventListener("ended", handleEnded);
@@ -99,6 +115,7 @@ export function usePreviewTransport({
     if (!player) return;
 
     // A replacement track must never inherit the previous track's frame.
+    lastPublishedTimeRef.current = 0;
     player.pause();
     player.seekTo(0);
   }, [player, source]);
