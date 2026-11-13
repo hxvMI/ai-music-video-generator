@@ -134,9 +134,16 @@ export type VideoLayoutConfig = {
   progressTimeScale: number;
 };
 export type CaptionMode = "off" | "beat" | "lyrics";
+export type VideoCaptionCue = {
+  id: string;
+  startSeconds: number;
+  endSeconds: number;
+  text: string;
+};
 export type VideoCaptionConfig = {
   mode: CaptionMode;
   lyricsText: string;
+  cues: VideoCaptionCue[];
   position: OverlayPosition;
   offsetX: number;
   offsetY: number;
@@ -201,6 +208,7 @@ export type BackgroundGenerationErrorResponse = {
 };
 export type AudioTranscriptionResponse = {
   text: string;
+  segments: VideoCaptionCue[];
   provider: "openai" | "cloudflare";
   model: string;
   transcriptId: string;
@@ -285,7 +293,7 @@ export type ExportAssetReference = {
 };
 
 export type VideoExportManifest = {
-  version: 2;
+  version: 3;
   metadata: {
     songTitle: string;
     artistName: string;

@@ -11,6 +11,10 @@ import { Download, Plus, Save, Trash2, Upload } from "lucide-react";
 
 import CollapsibleCard from "@/components/ui/CollapsibleCard";
 import ReactiveArrangementEditor from "./ReactiveArrangementEditor";
+import CaptionTimingEditor from "./CaptionTimingEditor";
+import NumericControl from "@/components/ui/NumericControl";
+import VisualPresetThumbnail from "@/components/video/VisualPresetThumbnail";
+import CanvasLayoutEditor from "./CanvasLayoutEditor";
 import {
   getActiveReactiveZone,
   REACTIVE_ZONE_LABELS,
@@ -29,11 +33,11 @@ import {
   DEFAULT_VISUALIZER_LAYER,
   normalizeVideoLayout,
   OVERLAY_POSITION_OPTIONS,
-  VIDEO_FONT_OPTIONS,
 } from "@/lib/videoLayout";
 import {
   DEFAULT_VIDEO_CAPTIONS,
   getLyricLines,
+  normalizeVideoCaptions,
 } from "@/lib/videoCaptions";
 import type {
   CaptionMode,
@@ -46,13 +50,16 @@ import type {
   ReactiveTimeline,
   ReactiveZone,
   OverlayPosition,
-  ProgressStyle,
-  VideoFontFamily,
   VideoCaptionConfig,
   VideoLayoutConfig,
 } from "@/types/videoProject";
 
 type VisualDetailsProps = {
+  view?: "visuals" | "captions";
+  onTranscribeLyrics: () => Promise<void>;
+  isTranscribingLyrics: boolean;
+  canTranscribeLyrics: boolean;
+  transcriptionError: string | null;
   videoTheme: VideoTheme;
   setVideoTheme: React.Dispatch<React.SetStateAction<VideoTheme>>;
 
@@ -94,14 +101,6 @@ const visualModeOptions: { value: VisualMode; label: string }[] = [
   { value: "auto", label: "Auto" },
 ];
 
-const progressStyleOptions: { value: ProgressStyle; label: string }[] = [
-  { value: "solid", label: "Solid" },
-  { value: "glow", label: "Glow" },
-  { value: "gradient", label: "Gradient" },
-  { value: "segmented", label: "Segmented" },
-  { value: "minimal", label: "Minimal Line" },
-  { value: "pulse", label: "Pulse" },
-];
 const captionModeOptions: { value: CaptionMode; label: string }[] = [
   { value: "off", label: "Off" },
   { value: "beat", label: "Beat" },
@@ -241,6 +240,11 @@ const VISUAL_STYLE_TEMPLATES: VisualStyleTemplate[] = [
 ];
 
 export default function VisualDetails({
+  view = "visuals",
+  onTranscribeLyrics,
+  isTranscribingLyrics,
+  canTranscribeLyrics,
+  transcriptionError,
   videoTheme,
   setVideoTheme,
   visualizerColor,
@@ -334,7 +338,7 @@ export default function VisualDetails({
     setCameraPreset(settings.cameraPreset);
     setEffectPreset(settings.effectPreset);
     setLayout(normalizeVideoLayout(settings.layout));
-    setCaptions(settings.captions);
+    setCaptions(normalizeVideoCaptions(settings.captions));
   };
   const storeProfiles = (profiles: SavedVisualProfile[]) => {
     setSavedProfiles(profiles);
@@ -380,12 +384,6 @@ export default function VisualDetails({
       if (profileUploadRef.current) profileUploadRef.current.value = "";
     }
   };
-  const updateLayout = <Key extends keyof VideoLayoutConfig>(
-    key: Key,
-    value: VideoLayoutConfig[Key]
-  ) => {
-    setLayout((currentLayout) => ({ ...currentLayout, [key]: value }));
-  };
   const updateVisualizerLayer = (
     layerId: string,
     values: Partial<VideoLayoutConfig["visualizerLayers"][number]>
@@ -424,13 +422,15 @@ export default function VisualDetails({
       ? "Captions off"
       : captions.mode === "beat"
         ? "Beat and drop callouts"
-        : `${lyricLineCount} lyric lines`;
+        : captions.cues.length > 0
+          ? `${captions.cues.length} timed lyric cues`
+          : `${lyricLineCount} lyric lines`;
 
   const containerClass =
     surface === "card" ? "rounded-lg border bg-white p-4" : "";
 
   return (
-    <div className={containerClass}>
+    <div className={`${containerClass} visual-editor`} data-editor-view={view}>
       {showTitle && (
         <h2 className="font-semibold text-gray-950">Visual Design</h2>
       )}
@@ -444,7 +444,7 @@ export default function VisualDetails({
           summary={`${selectedTheme.label}, ${visualMode} mode`}
           defaultOpen
         >
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3">
             {VISUAL_STYLE_TEMPLATES.map((template) => {
               const isActive =
                 videoTheme === template.theme &&
@@ -458,25 +458,22 @@ export default function VisualDetails({
                 <button
                   key={template.id}
                   type="button"
+                  aria-pressed={isActive}
                   onClick={() => applyTemplate(template)}
                   className={[
-                    "selectable-card group/look grid min-h-32 grid-rows-[36px_auto_1fr] overflow-hidden rounded-lg border p-3 text-left transition",
+                    "selectable-card preset-card group/look grid overflow-hidden rounded-lg border text-left transition",
                     isActive
                       ? "is-selected"
                       : "border-gray-200 bg-white hover:border-cyan-300",
                   ].join(" ")}
                 >
-                  <div className="mb-2 flex h-9 items-end gap-1 overflow-hidden rounded bg-gray-950 px-2 py-1.5">
-                    {Array.from({ length: 14 }, (_, index) => (
-                      <span key={index} className="w-1 rounded-full" style={{ height: `${25 + ((index * 37) % 70)}%`, backgroundColor: template.visualizerColor }} />
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2">
+                  <VisualPresetThumbnail preset={template} />
+                  <div className="flex items-center gap-2 px-3 pt-3">
                     <span className="text-sm font-semibold text-gray-950">
                       {template.label}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-gray-600">
+                  <p className="mt-1 px-3 pb-3 text-xs text-gray-600">
                     {template.description}
                   </p>
                 </button>
@@ -652,12 +649,13 @@ export default function VisualDetails({
                     ["rotation", "Rotation", -180, 180, 1],
                     ["opacity", "Opacity", 0.1, 1, 0.05],
                     ["reactivity", "Reactivity", 0.25, 3, 0.05],
-                  ] as const).map(([key, label, min, max, step]) => (
-                    <label key={key} className="grid gap-1 text-xs font-medium text-gray-600">
-                      {label} {key.startsWith("scale") || key === "opacity" || key === "reactivity" ? `${Math.round(layer[key] * 100)}%` : key === "rotation" ? `${layer[key]}deg` : `${layer[key]}px`}
-                      <input type="range" min={min} max={max} step={step} value={layer[key]} onChange={(event) => updateVisualizerLayer(layer.id, { [key]: Number(event.target.value) })} />
-                    </label>
-                  ))}
+                  ] as const).map(([key, label, min, max, step]) => {
+                    const factor = key.startsWith("scale") || key === "opacity" || key === "reactivity" ? 100 : 1;
+                    return <NumericControl key={key} label={label} value={layer[key] * factor} min={min * factor} max={max * factor} step={step * factor}
+                      unit={factor === 100 ? "%" : key === "rotation" ? "deg" : "px"}
+                      defaultValue={DEFAULT_VISUALIZER_LAYER[key] * factor}
+                      onChange={(value) => updateVisualizerLayer(layer.id, { [key]: value / factor })} />;
+                  })}
                 </div>
               </div>
             ))}
@@ -695,333 +693,29 @@ export default function VisualDetails({
           title="Canvas & Overlays"
           category="Canvas"
           className="order-7"
-          description="Frame the background and position title and playback progress."
-          summary={`${Math.round(layout.backgroundScale * 100)}% background, ${layout.titlePosition} title, ${layout.progressPosition} progress`}
+          description="Position your background, title, progress bar, and timer."
+          summary={`${Math.round(layout.backgroundScale * 100)}% background, ${layout.titlePosition} title`}
         >
-          <div className="grid gap-4">
-            <div className="grid gap-3 rounded-lg border bg-gray-50 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-gray-950">
-                  Background Frame
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setLayout(DEFAULT_VIDEO_LAYOUT)}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700"
-                >
-                  Reset layout
-                </button>
-              </div>
-
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Zoom {Math.round(layout.backgroundScale * 100)}%
-                <input
-                  type="range"
-                  min={1}
-                  max={1.5}
-                  step={0.01}
-                  value={layout.backgroundScale}
-                  onChange={(event) =>
-                    updateLayout("backgroundScale", Number(event.target.value))
-                  }
-                />
-              </label>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid gap-1 text-sm font-medium text-gray-700">
-                  Horizontal offset {layout.backgroundOffsetX}px
-                  <input
-                    type="range"
-                    min={-240}
-                    max={240}
-                    step={5}
-                    value={layout.backgroundOffsetX}
-                    onChange={(event) =>
-                      updateLayout(
-                        "backgroundOffsetX",
-                        Number(event.target.value)
-                      )
-                    }
-                  />
-                </label>
-
-                <label className="grid gap-1 text-sm font-medium text-gray-700">
-                  Vertical offset {layout.backgroundOffsetY}px
-                  <input
-                    type="range"
-                    min={-160}
-                    max={160}
-                    step={5}
-                    value={layout.backgroundOffsetY}
-                    onChange={(event) =>
-                      updateLayout(
-                        "backgroundOffsetY",
-                        Number(event.target.value)
-                      )
-                    }
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="grid gap-3 rounded-lg border bg-gray-50 p-3">
-              <p className="text-sm font-semibold text-gray-950">Title Overlay</p>
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Video font
-                <select
-                  value={layout.fontFamily}
-                  onChange={(event) =>
-                    updateLayout(
-                      "fontFamily",
-                      event.target.value as VideoFontFamily
-                    )
-                  }
-                  className="rounded-lg border px-3 py-2 font-normal text-gray-950 outline-none focus:border-cyan-500"
-                >
-                  {VIDEO_FONT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-xs font-normal text-gray-500">
-                  Applies to the title, artist, captions, and video timer.
-                </span>
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Title position
-                <select
-                  value={layout.titlePosition}
-                  onChange={(event) =>
-                    updateLayout(
-                      "titlePosition",
-                      event.target.value as OverlayPosition
-                    )
-                  }
-                  className="rounded-lg border px-3 py-2 font-normal text-gray-950 outline-none focus:border-cyan-500"
-                >
-                  {OVERLAY_POSITION_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Title X offset {layout.titleOffsetX}px
-                <input
-                  type="range"
-                  min={-900}
-                  max={900}
-                  step={5}
-                  value={layout.titleOffsetX}
-                  onChange={(event) =>
-                    updateLayout("titleOffsetX", Number(event.target.value))
-                  }
-                />
-              </label>
-
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Title Y offset {layout.titleOffsetY}px
-                <input
-                  type="range"
-                  min={-600}
-                  max={600}
-                  step={5}
-                  value={layout.titleOffsetY}
-                  onChange={(event) =>
-                    updateLayout("titleOffsetY", Number(event.target.value))
-                  }
-                />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-gray-700 sm:col-span-2">
-                Title rotation {layout.titleRotation}deg
-                <input type="range" min={-180} max={180} step={1} value={layout.titleRotation} onChange={(event) => updateLayout("titleRotation", Number(event.target.value))} />
-              </label>
-              </div>
-            </div>
-
-            <div className="grid gap-3 rounded-lg border bg-gray-50 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-gray-950">
-                  Progress Bar
-                </p>
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={layout.showProgress}
-                    onChange={(event) =>
-                      updateLayout("showProgress", event.target.checked)
-                    }
-                    className="h-4 w-4"
-                  />
-                  Show
-                </label>
-              </div>
-
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Progress position
-                <select
-                  value={layout.progressPosition}
-                  onChange={(event) =>
-                    updateLayout(
-                      "progressPosition",
-                      event.target.value as OverlayPosition
-                    )
-                  }
-                  className="rounded-lg border px-3 py-2 font-normal text-gray-950 outline-none focus:border-cyan-500"
-                >
-                  {OVERLAY_POSITION_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Progress bar color
-                <div className="flex items-center gap-3 rounded-lg border bg-white px-3 py-2">
-                  <input type="color" value={visualizerColor} onChange={(event) => updateProgressColor(event.target.value)} className="h-8 w-12 cursor-pointer border-0 bg-transparent p-0" />
-                  <span className="font-mono text-xs text-gray-700">{visualizerColor}</span>
-                </div>
-              </label>
-
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Progress style
-                <select
-                  value={layout.progressStyle ?? "solid"}
-                  onChange={(event) => updateLayout("progressStyle", event.target.value as ProgressStyle)}
-                  className="rounded-lg border px-3 py-2 font-normal text-gray-950 outline-none focus:border-cyan-500"
-                >
-                  {progressStyleOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid gap-1 text-sm font-medium text-gray-700">
-                  Progress X offset {layout.progressOffsetX}px
-                  <input
-                    type="range"
-                    min={-360}
-                    max={360}
-                    step={5}
-                    value={layout.progressOffsetX}
-                    onChange={(event) =>
-                      updateLayout(
-                        "progressOffsetX",
-                        Number(event.target.value)
-                      )
-                    }
-                  />
-                </label>
-
-                <label className="grid gap-1 text-sm font-medium text-gray-700">
-                  Progress Y offset {layout.progressOffsetY}px
-                  <input
-                    type="range"
-                    min={-260}
-                    max={260}
-                    step={5}
-                    value={layout.progressOffsetY}
-                    onChange={(event) =>
-                      updateLayout(
-                        "progressOffsetY",
-                        Number(event.target.value)
-                      )
-                    }
-                  />
-                </label>
-
-                <label className="grid gap-1 text-sm font-medium text-gray-700 sm:col-span-2">
-                  Progress width {layout.progressWidth}px
-                  <input
-                    type="range"
-                    min={360}
-                    max={1600}
-                    step={20}
-                    value={layout.progressWidth}
-                  onChange={(event) =>
-                      updateLayout("progressWidth", Number(event.target.value))
-                    }
-                  />
-                </label>
-                <label className="grid gap-1 text-sm font-medium text-gray-700 sm:col-span-2">
-                  Progress height {layout.progressHeight ?? 12}px
-                  <input type="range" min={2} max={48} step={1} value={layout.progressHeight ?? 12} onChange={(event) => updateLayout("progressHeight", Number(event.target.value))} />
-                </label>
-                <label className="grid gap-1 text-sm font-medium text-gray-700 sm:col-span-2">
-                  Progress rotation {layout.progressRotation}deg
-                  <input type="range" min={-180} max={180} step={1} value={layout.progressRotation} onChange={(event) => updateLayout("progressRotation", Number(event.target.value))} />
-                </label>
-              </div>
-            </div>
-
-            <div className="grid gap-3 rounded-lg border bg-gray-50 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold text-gray-950">Video Timer</p>
-                  <p className="text-xs text-gray-500">Position the elapsed and total time separately from the bar.</p>
-                </div>
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={layout.showProgressTime}
-                    onChange={(event) => updateLayout("showProgressTime", event.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  Show
-                </label>
-              </div>
-
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Timer position
-                <select
-                  value={layout.progressTimePosition}
-                  onChange={(event) => updateLayout("progressTimePosition", event.target.value as OverlayPosition)}
-                  className="rounded-lg border px-3 py-2 font-normal text-gray-950 outline-none focus:border-cyan-500"
-                >
-                  {OVERLAY_POSITION_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid gap-1 text-sm font-medium text-gray-700">
-                  Timer X offset {layout.progressTimeOffsetX}px
-                  <input type="range" min={-900} max={900} step={10} value={layout.progressTimeOffsetX} onChange={(event) => updateLayout("progressTimeOffsetX", Number(event.target.value))} />
-                </label>
-                <label className="grid gap-1 text-sm font-medium text-gray-700">
-                  Timer Y offset {layout.progressTimeOffsetY}px
-                  <input type="range" min={-600} max={600} step={10} value={layout.progressTimeOffsetY} onChange={(event) => updateLayout("progressTimeOffsetY", Number(event.target.value))} />
-                </label>
-                <label className="grid gap-1 text-sm font-medium text-gray-700 sm:col-span-2">
-                  Timer rotation {layout.progressTimeRotation}deg
-                  <input type="range" min={-180} max={180} step={1} value={layout.progressTimeRotation} onChange={(event) => updateLayout("progressTimeRotation", Number(event.target.value))} />
-                </label>
-                <label className="grid gap-1 text-sm font-medium text-gray-700 sm:col-span-2">
-                  Timer scale {Math.round(layout.progressTimeScale * 100)}%
-                  <input type="range" min={0.5} max={3} step={0.05} value={layout.progressTimeScale} onChange={(event) => updateLayout("progressTimeScale", Number(event.target.value))} />
-                </label>
-              </div>
-            </div>
-          </div>
+          <CanvasLayoutEditor layout={layout} onChange={setLayout}
+            progressColor={visualizerColor} onProgressColor={updateProgressColor} />
         </CollapsibleCard>
 
         <CollapsibleCard
           title="Captions"
           badge="Alpha"
           category="Text"
-          className="order-8"
+          className="caption-section order-8"
+          defaultOpen
           description="Add timed lyric lines or automatic beat/drop callouts."
           summary={captionSummary}
         >
           <div className="grid gap-4">
+            <button type="button" disabled={!canTranscribeLyrics || isTranscribingLyrics}
+              onClick={() => void onTranscribeLyrics()}
+              className="w-fit rounded border border-cyan-700 px-3 py-2 text-sm font-medium text-cyan-900 disabled:opacity-50">
+              {isTranscribingLyrics ? "Transcribing lyrics..." : "Transcribe lyrics"}
+            </button>
+            {transcriptionError && <p role="alert" className="text-sm text-red-700">{transcriptionError}</p>}
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
               <input
                 type="checkbox"
@@ -1063,26 +757,36 @@ export default function VisualDetails({
             {captions.mode === "lyrics" && (
               <label className="grid gap-1 text-sm font-medium text-gray-700">
                 Lyrics
-                <textarea
+                {captions.cues.length === 0 && <textarea
                   value={captions.lyricsText}
                   onChange={(event) =>
-                    updateCaptions("lyricsText", event.target.value)
+                    setCaptions((currentCaptions) => ({
+                      ...currentCaptions,
+                      lyricsText: event.target.value,
+                      cues: [],
+                    }))
                   }
                   placeholder={"Paste one lyric line per line.\nLines are spread across the song for now."}
                   rows={7}
                   className="min-h-36 rounded-lg border px-3 py-2 font-normal text-gray-950 outline-none focus:border-cyan-500"
-                />
+                />}
                 <span className="text-xs font-normal text-gray-500">
-                  {lyricLineCount} lines detected. This V1 distributes them
-                  evenly across the track.
+                  {captions.cues.length > 0
+                    ? `${captions.cues.length} transcription-timed cues are active.`
+                    : `${lyricLineCount} lines detected. Untimed text is distributed evenly across the track.`}
                 </span>
               </label>
             )}
 
+            {captions.mode === "lyrics" && (
+              <CaptionTimingEditor captions={captions} duration={duration}
+                onChange={setCaptions} onSeek={seek} />
+            )}
+
             {captions.mode === "beat" && (
               <div className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-sm text-cyan-900">
-                Beat captions use the existing audio analysis to flash
-                “BEAT” on strong onsets and “DROP” near detected drops.
+                Beat captions use the existing audio analysis to flash BEAT on
+                strong onsets and DROP near detected drops.
               </div>
             )}
 

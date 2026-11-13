@@ -59,7 +59,7 @@ export function buildVideoExportManifest(
   const durationSeconds = Math.max(project.playback.duration, 0);
 
   return {
-    version: 2,
+    version: 3,
     metadata: {
       songTitle: project.metadata.songTitle.trim(),
       artistName: project.metadata.artistName.trim(),

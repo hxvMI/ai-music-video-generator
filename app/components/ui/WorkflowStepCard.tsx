@@ -16,6 +16,7 @@ type WorkflowStepCardProps = {
   completedSummary?: ReactNode;
   children: ReactNode;
   initialOpen?: boolean;
+  flat?: boolean;
 };
 
 export default function WorkflowStepCard({
@@ -28,11 +29,26 @@ export default function WorkflowStepCard({
   completedSummary,
   children,
   initialOpen,
+  flat = false,
 }: WorkflowStepCardProps) {
   // Readiness chooses the initial layout, then the disclosure belongs to the
   // user. A validation change should never close a form while it has focus.
   const [isOpen, setIsOpen] = useState(() => initialOpen ?? !isReady);
   const toggleLabel = isOpen ? "Hide" : "Show";
+
+  if (flat) return (
+    <section className="editor-section workflow-step-flat">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-950">{title}</h2>
+          <p className="mt-1 text-sm text-gray-500">{description}</p>
+        </div>
+        {!isReady && <StatusPill label="Needs input" tone="waiting" />}
+      </div>
+      {missingItems.length > 0 && <p className="mb-4 text-sm text-gray-600">Missing: {missingItems.join(", ")}</p>}
+      {children}
+    </section>
+  );
 
   return (
     <Panel className="workflow-step p-4">

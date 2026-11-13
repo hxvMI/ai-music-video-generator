@@ -3,6 +3,7 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "env": {
+    "AI_PROVIDER": "cloudflare",
     "RENDER_BACKEND": "disabled",
     "NEXT_PUBLIC_RENDER_BACKEND": "disabled"
   },

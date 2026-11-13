@@ -14,7 +14,7 @@ const DEFAULT_BACKGROUND_DATA_URL = buildGeneratedBackgroundDataUrl({
 });
 
 export const DEFAULT_REMOTION_MANIFEST: VideoExportManifest = {
-  version: 2,
+  version: 3,
   metadata: {
     songTitle: "Song Title",
     artistName: "Artist Name",

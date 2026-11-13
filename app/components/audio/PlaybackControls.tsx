@@ -3,7 +3,6 @@
 import { Pause, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { useState } from "react";
 
-import Panel from "@/components/ui/Panel";
 
 type PlaybackControlsProps = {
   audioFile: File | null;
@@ -16,6 +15,7 @@ type PlaybackControlsProps = {
   volume: number;
   setVolume: (volume: number) => void;
   showDetailedControls?: boolean;
+  compact?: boolean;
 };
 
 function formatTime(seconds: number) {
@@ -29,7 +29,7 @@ function formatTime(seconds: number) {
   return `${minutes}:${remainingSeconds}`;
 }
 
-export default function PlaybackControls({audioFile, isPlaying, currentTime, duration, play, pause, seek, volume, setVolume, showDetailedControls = true}: PlaybackControlsProps) {
+export default function PlaybackControls({audioFile, isPlaying, currentTime, duration, play, pause, seek, volume, setVolume, showDetailedControls = true, compact = false}: PlaybackControlsProps) {
   const hasLoadedAudio = audioFile !== null && duration > 0;
   //When current time is greater than 0 and audio has loaded can skip back
   //When current time is less than duration of video and audio has loaded can skip forward 
@@ -103,8 +103,8 @@ export default function PlaybackControls({audioFile, isPlaying, currentTime, dur
   };
 
   return (
-    <Panel className="p-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className={compact ? "preview-transport" : "app-panel p-4"}>
+      {!compact && <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-800">
             <Volume2 aria-hidden="true" className="h-4 w-4" />
@@ -124,9 +124,9 @@ export default function PlaybackControls({audioFile, isPlaying, currentTime, dur
             {formatTime(displayedTime)} / {formatTime(duration)}
           </p>
         ) : null}
-      </div>
+      </div>}
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className={`${compact ? "" : "mt-4"} flex flex-wrap items-center gap-3`}>
 
         <button
           type="button"
@@ -218,6 +218,6 @@ export default function PlaybackControls({audioFile, isPlaying, currentTime, dur
         />
       </div>
       ) : null}
-    </Panel>
+    </div>
   );
 }

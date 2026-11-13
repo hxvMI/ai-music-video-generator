@@ -35,7 +35,7 @@ export default function FileDropzone({
       <div
         {...getRootProps()}
         className={[
-          "cursor-pointer rounded-lg border border-dashed p-4 transition",
+          "relative cursor-pointer rounded-lg border border-dashed p-4 transition",
           "bg-white text-left hover:border-cyan-400 hover:bg-cyan-50/60",
           isDragActive ? "border-cyan-500 bg-cyan-50" : "border-gray-300",
         ].join(" ")}

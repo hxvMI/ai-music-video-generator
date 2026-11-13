@@ -11,11 +11,12 @@ import { LoaderCircle, RefreshCw, Sparkles } from "lucide-react";
 
 import CollapsibleCard from "@/components/ui/CollapsibleCard";
 import FileDropzone from "@/components/ui/FileDropzone";
+import NumericControl from "@/components/ui/NumericControl";
 import {
   BACKGROUND_PRESETS,
   getBackgroundPreset,
 } from "@/lib/backgroundStudio";
-import { OVERLAY_POSITION_OPTIONS } from "@/lib/videoLayout";
+import { DEFAULT_VIDEO_LAYOUT, OVERLAY_POSITION_OPTIONS } from "@/lib/videoLayout";
 import type {
   BackgroundGenerationProvider,
   BackgroundPresetId,
@@ -441,30 +442,18 @@ export default function DetailUploader({
             </label>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Horizontal offset {layout.logoOffsetX}px
-                <input type="range" min={-900} max={900} step={5} value={layout.logoOffsetX} onChange={(event) => updateLayout("logoOffsetX", Number(event.target.value))} />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Vertical offset {layout.logoOffsetY}px
-                <input type="range" min={-600} max={600} step={5} value={layout.logoOffsetY} onChange={(event) => updateLayout("logoOffsetY", Number(event.target.value))} />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Width {layout.logoWidth}px
-                <input type="range" min={40} max={900} step={10} value={layout.logoWidth} onChange={(event) => updateLayout("logoWidth", Number(event.target.value))} />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Height {layout.logoHeight}px
-                <input type="range" min={40} max={900} step={10} value={layout.logoHeight} onChange={(event) => updateLayout("logoHeight", Number(event.target.value))} />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Rotation {layout.logoRotation}deg
-                <input type="range" min={-180} max={180} step={1} value={layout.logoRotation} onChange={(event) => updateLayout("logoRotation", Number(event.target.value))} />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-gray-700">
-                Opacity {Math.round(layout.logoOpacity * 100)}%
-                <input type="range" min={0} max={1} step={0.05} value={layout.logoOpacity} onChange={(event) => updateLayout("logoOpacity", Number(event.target.value))} />
-              </label>
+              {([
+                ["logoOffsetX", "Horizontal", -900, 900, 5, "px"],
+                ["logoOffsetY", "Vertical", -600, 600, 5, "px"],
+                ["logoWidth", "Width", 40, 900, 10, "px"],
+                ["logoHeight", "Height", 40, 900, 10, "px"],
+                ["logoRotation", "Rotation", -180, 180, 1, "deg"],
+              ] as const).map(([key, label, min, max, step, unit]) => (
+                <NumericControl key={key} label={label} min={min} max={max} step={step} unit={unit}
+                  value={layout[key]} defaultValue={DEFAULT_VIDEO_LAYOUT[key]} onChange={(value) => updateLayout(key, value)} />
+              ))}
+              <NumericControl label="Opacity" min={0} max={100} step={5} unit="%" value={layout.logoOpacity * 100}
+                defaultValue={100} onChange={(value) => updateLayout("logoOpacity", value / 100)} />
             </div>
           </div>
         </CollapsibleCard>

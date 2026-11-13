@@ -66,6 +66,8 @@ function titleCase(value: string) {
 
 export function parseTrackInfoFromFileName(fileName: string): TrackInfo {
   const cleanedName = cleanWord(fileName);
+  const byMatch = cleanedName.match(/^(.+?)\s+by\s+(.+)$/i);
+  if (byMatch) return { songTitle: titleCase(byMatch[1]), artistName: titleCase(byMatch[2]) };
   const separatedMatch = cleanedName.match(
     /^(.+?)\s+(?:-|\u2013|\u2014|by)\s+(.+)$/i
   );
@@ -269,7 +271,7 @@ export function buildAutoCreatorSetup({
   const layout: VideoLayoutConfig = {
     ...DEFAULT_VIDEO_LAYOUT,
     backgroundScale: profile.isEnergetic ? 1.12 : profile.isCalm ? 1.04 : 1.08,
-    titlePosition: hasLyrics ? "top-left" : "bottom-left",
+    titlePosition: "top-left",
     visualizerPosition: hasLyrics ? "bottom-center" : "bottom-left",
     visualizerOffsetY: hasLyrics ? -20 : 0,
     visualizerLayers: [
@@ -288,7 +290,7 @@ export function buildAutoCreatorSetup({
         ...DEFAULT_VIDEO_CAPTIONS,
         mode: "lyrics",
         lyricsText: captionLyrics,
-        position: "bottom-center",
+        position: "center",
       }
     : {
         ...DEFAULT_VIDEO_CAPTIONS,

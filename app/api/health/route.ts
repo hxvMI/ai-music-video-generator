@@ -1,3 +1,5 @@
+import { hasAppCreditConfiguration } from "@/lib/appAiCredits";
+
 export const runtime = "nodejs";
 
 export function GET() {
@@ -15,18 +17,8 @@ export function GET() {
     capabilities: {
       preview: true,
       localAudioAnalysis: true,
-      backgroundGeneration:
-        Boolean(process.env.OPENAI_API_KEY) ||
-        Boolean(
-          process.env.CLOUDFLARE_ACCOUNT_ID &&
-            process.env.CLOUDFLARE_API_TOKEN
-        ),
-      transcription:
-        Boolean(process.env.OPENAI_API_KEY) ||
-        Boolean(
-          process.env.CLOUDFLARE_ACCOUNT_ID &&
-            process.env.CLOUDFLARE_API_TOKEN
-        ),
+      backgroundGeneration: hasAppCreditConfiguration(),
+      transcription: hasAppCreditConfiguration(),
       mp4RenderBackend: renderBackend,
     },
   });

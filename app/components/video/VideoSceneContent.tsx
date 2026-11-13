@@ -348,7 +348,8 @@ function SceneVisualizer({
         key={index}
         style={{
           width: settings.width,
-          height,
+          // CSS rounds long decimals; keep server and browser styles identical on hydration.
+          height: Math.round(height * 1000) / 1000,
           borderRadius: 999,
           backgroundColor: color,
           boxShadow:

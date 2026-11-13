@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-import { Cloud, KeyRound, ShieldCheck } from "lucide-react";
+import { Cloud, KeyRound, ShieldCheck, RefreshCw } from "lucide-react";
+import { useAppAiCredits } from "@/hooks/useAppAiCredits";
 
 import type { AiProviderConnection, AiProvider } from "@/types/videoProject";
 
@@ -18,9 +19,10 @@ const providers: Array<{ value: AiProvider; label: string }> = [
 ];
 
 export default function AiProviderSettings({ connection, onChange }: Props) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
+  const { credits, failed, refresh } = useAppAiCredits();
   const isReady =
-    connection.provider === "server" ||
+    (connection.provider === "server" && !failed && credits?.status === "ready") ||
     (connection.provider === "openai" && Boolean(connection.openAiApiKey.trim())) ||
     (connection.provider === "cloudflare" &&
       Boolean(connection.cloudflareAccountId.trim()) &&
@@ -31,7 +33,7 @@ export default function AiProviderSettings({ connection, onChange }: Props) {
 
   return (
     <details
-      className="group editor-disclosure"
+      className="group ai-connection editor-disclosure"
       open={isOpen}
       onToggle={(event) => setIsOpen(event.currentTarget.open)}
     >
@@ -45,17 +47,21 @@ export default function AiProviderSettings({ connection, onChange }: Props) {
               <p className="text-sm font-semibold text-gray-950">AI connection</p>
               <p className="truncate text-xs text-gray-500">
                 {connection.provider === "server"
-                  ? "Use the app's server configuration"
+                  ? failed ? "Balance unavailable"
+                    : credits?.status === "ready" ? `Cloudflare · ${credits.remaining}/${credits.limit} shared credits`
+                    : credits?.status === "exhausted" ? "Shared allowance exhausted"
+                    : credits?.status === "not_configured" ? "Personal connection available"
+                    : "Checking shared allowance"
                   : `${connection.provider === "openai" ? "OpenAI" : "Cloudflare Workers AI"} ${isReady ? "ready" : "needs credentials"}`}
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${isReady ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
-              {isReady ? "Ready" : "Setup needed"}
+              {isReady ? "Connected" : "Connect"}
             </span>
             <span className="rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600">
-              {isOpen ? "Hide" : "Show"}
+              {isOpen ? "Hide" : "Manage"}
             </span>
           </div>
         </div>
@@ -73,6 +79,30 @@ export default function AiProviderSettings({ connection, onChange }: Props) {
               {provider.label}
             </button>
           ))}
+        </div>
+
+        <div className="grid gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3" aria-live="polite">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-gray-950">App default credits</p>
+            <button type="button" onClick={refresh} title="Refresh shared credits" aria-label="Refresh shared credits"
+              className="rounded border border-gray-200 bg-white p-2 text-gray-700">
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+          <p className="text-sm text-gray-700">
+            {failed || credits?.status === "unavailable" ? "Shared balance unavailable. Use your own connection or try again later."
+              : !credits ? "Checking shared allowance..."
+              : credits.status === "not_configured" ? "App default needs server setup. Personal connections are available."
+              : credits.status === "exhausted" ? "Shared allowance exhausted. Switch to OpenAI or Cloudflare with your own credentials."
+              : `${credits.remaining} of ${credits.limit} daily credits left, shared by all visitors.`}
+          </p>
+          {credits?.remaining !== null && credits?.remaining !== undefined && (
+            <progress aria-label="Shared daily credits remaining" value={credits.remaining} max={credits.limit} className="h-2 w-full accent-cyan-700" />
+          )}
+          <p className="text-xs text-gray-500">
+            One credit per submitted background or transcription request, including failed attempts. Resets at 00:00 UTC.
+            This is the app&apos;s request allowance; Cloudflare&apos;s separate neuron limit may run out sooner.
+          </p>
         </div>
 
         {connection.provider === "openai" && (

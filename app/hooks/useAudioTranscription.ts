@@ -27,15 +27,17 @@ export function useAudioTranscription(
   { enabled = true, connection }: UseAudioTranscriptionOptions
 ) {
   const [text, setText] = useState("");
+  const [segments, setSegments] = useState<AudioTranscriptionResponse["segments"]>([]);
   const [status, setStatus] = useState<TranscriptionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const transcribe = useCallback(async (): Promise<string | null> => {
+  const transcribe = useCallback(async (): Promise<AudioTranscriptionResponse | null> => {
     abortControllerRef.current?.abort();
 
     if (!audioFile) {
       setText("");
+      setSegments([]);
       setStatus("idle");
       setError(null);
       return null;
@@ -59,6 +61,8 @@ export function useAudioTranscription(
         | AudioTranscriptionResponse
         | AudioTranscriptionErrorResponse;
 
+      if (controller.signal.aborted || abortControllerRef.current !== controller) return null;
+
       if (!response.ok || "error" in responseBody) {
         throw new Error(
           "error" in responseBody
@@ -68,27 +72,30 @@ export function useAudioTranscription(
       }
 
       setText(responseBody.text);
+      setSegments(responseBody.segments ?? []);
       setStatus("succeeded");
       setError(null);
-      return responseBody.text;
+      return responseBody;
     } catch (reason) {
-      if (reason instanceof DOMException && reason.name === "AbortError") {
+      if (controller.signal.aborted || abortControllerRef.current !== controller) {
         return null;
       }
 
       setText("");
+      setSegments([]);
       const message =
         reason instanceof Error
           ? reason.message
           : "Unable to transcribe audio.";
       setStatus(
-        message.toLowerCase().includes("not configured")
+        message.toLowerCase().includes("not configured") || message.toLowerCase().includes("connect openai")
           ? "unavailable"
           : "failed"
       );
       setError(message);
       return null;
     } finally {
+      if (connection.provider === "server") window.dispatchEvent(new Event("app-ai-usage-change"));
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
       }
@@ -99,6 +106,7 @@ export function useAudioTranscription(
     if (!audioFile) {
       const resetTimer = window.setTimeout(() => {
         setText("");
+        setSegments([]);
         setStatus("idle");
         setError(null);
       }, 0);
@@ -109,6 +117,7 @@ export function useAudioTranscription(
     const transcribeTimer = window.setTimeout(() => {
       if (!enabled) {
         setText("");
+        setSegments([]);
         setStatus("idle");
         setError(null);
       } else {
@@ -125,6 +134,7 @@ export function useAudioTranscription(
 
   return {
     text,
+    segments,
     status,
     error,
     retry: transcribe,

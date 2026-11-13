@@ -96,6 +96,7 @@ export function useBackgroundGeneration({
           : "Unable to generate a background."
       );
     } finally {
+      if (connection.provider === "server") window.dispatchEvent(new Event("app-ai-usage-change"));
       if (requestControllerRef.current === controller) {
         requestControllerRef.current = null;
         setIsGenerating(false);
@@ -151,17 +152,20 @@ export function useBackgroundGeneration({
     [requestFingerprint]
   );
 
+  // Stable metadata keeps playback renders from looking like unsaved project edits.
+  const generation = useMemo(() => ({
+    provider: result?.provider ?? "local",
+    model: result?.model ?? null,
+    generationId: result?.generationId ?? null,
+  } satisfies VideoBackgroundConfig["generation"]), [result]);
+
   return {
     generate,
     reset: useLocalTemplate,
     useLocalTemplate,
     restoreGeneratedBackground,
     generatedDataUrl: result?.dataUrl ?? localDataUrl,
-    generation: {
-      provider: result?.provider ?? "local",
-      model: result?.model ?? null,
-      generationId: result?.generationId ?? null,
-    } satisfies VideoBackgroundConfig["generation"],
+    generation,
     hasAiBackground: result !== null,
     isStale:
       result !== null && result.requestFingerprint !== requestFingerprint,

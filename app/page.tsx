@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { Code2, FileText, GripVertical, Music, Palette, RotateCcw, Sparkles } from "lucide-react";
+import { Captions, Code2, FileText, GripVertical, Music, Palette, RotateCcw, Save, Settings2 } from "lucide-react";
+import { getProjectSnapshotKey } from "@/lib/projectSnapshotKey";
 
 import AudioUploader from "@/components/audio/AudioUploaderComponent";
 import DetailUploader from "@/components/audio/DetailUploader";
@@ -9,13 +10,11 @@ import PlaybackControls from "@/components/audio/PlaybackControls";
 import VisualDetails from "@/components/audio/VisualDetails";
 import RemotionPreviewPanel from "@/components/remotion/RemotionPreviewPanel";
 import DisclosureSection from "@/components/ui/DisclosureSection";
-import Panel from "@/components/ui/Panel";
 import StatusPill from "@/components/ui/StatusPill";
 import SummaryGrid, { InfoRow } from "@/components/ui/SummaryGrid";
 import WorkflowStepCard from "@/components/ui/WorkflowStepCard";
 import AiProviderSettings from "@/components/ui/AiProviderSettings";
 import InterfaceThemePicker, { type InterfaceTheme } from "@/components/ui/InterfaceThemePicker";
-import ProductionSummaryPanel from "@/components/video/ProductionSummaryPanel";
 import VideoExportManifestPanel from "@/components/video/VideoExportManifestPanel";
 import VideoRenderActions from "@/components/video/VideoRenderActions";
 import { useAudioAnalysis } from "@/hooks/useAudioAnalysis";
@@ -52,6 +51,7 @@ import {
 import {
   DEFAULT_VIDEO_CAPTIONS,
   isDefaultVideoCaptions,
+  normalizeVideoCaptions,
 } from "@/lib/videoCaptions";
 import {
   formatResolvedPresetSummary,
@@ -105,7 +105,7 @@ const DEFAULT_AI_CONNECTION: AiProviderConnection = {
   cloudflareAccountId: "",
   cloudflareApiToken: "",
 };
-type ProjectSaveStatus = "loading" | "empty" | "saving" | "saved" | "error";
+type ProjectSaveStatus = "loading" | "empty" | "saving" | "saved" | "error" | "dirty";
 type AutoSetupStatus = "waiting" | "running" | "applied" | "manual";
 const INTERFACE_THEME_KEY = "music-video-interface-theme";
 
@@ -124,6 +124,9 @@ function getInterfaceTheme(): InterfaceTheme {
 }
 
 export default function HomePage() {
+  const [editorTab, setEditorTab] = useState<"audio" | "branding" | "visuals" | "captions">("audio");
+  const directorRunRef = useRef(0);
+  const [useDirectorTranscription, setUseDirectorTranscription] = useState(false);
   const [isDevMode, setIsDevMode] = useState(false);
   const creatorGridRef = useRef<HTMLDivElement>(null);
   const [editorWidth, setEditorWidth] = useState(680);
@@ -196,6 +199,10 @@ export default function HomePage() {
   const hasStartedProjectRestore = useRef(false);
   const hasLoadedSavedProject = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedSnapshotKeyRef = useRef<string | null>(null);
+  const currentSnapshotKeyRef = useRef<string | null>(null);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [projectSaveStatus, setProjectSaveStatus] =
     useState<ProjectSaveStatus>("loading");
   const [projectSaveError, setProjectSaveError] = useState<string | null>(null);
@@ -212,6 +219,7 @@ export default function HomePage() {
   } = useAudioAnalysis(audioFile);
   const {
     text: audioTranscriptionText,
+    segments: audioTranscriptionSegments,
     status: audioTranscriptionStatus,
     error: audioTranscriptionError,
     retry: retryAudioTranscription,
@@ -367,7 +375,6 @@ export default function HomePage() {
   const isAudioStepReady = audioMissingItems.length === 0;
   const isTrackStepReady = trackMissingItems.length === 0;
   const isVisualStepReady = visualMissingItems.length === 0;
-  const isExportReady = exportBlockingReasons.length === 0;
   const resolvedVisuals = useMemo(() => {
     return resolveVisualPresets({
       style: exportManifest.style,
@@ -453,9 +460,31 @@ export default function HomePage() {
       visualizerPreset,
     ]
   );
+  const snapshotKey = useMemo(() => getProjectSnapshotKey(persistenceSnapshot), [persistenceSnapshot]);
+  const saveCurrentProject = useCallback(() => {
+    if (!hasLoadedSavedProject.current || savedSnapshotKeyRef.current === snapshotKey) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setProjectSaveStatus("saving");
+    setProjectSaveError(null);
+    // Keep manual saves and autosaves in order; a slow write must not replace newer edits.
+    saveQueueRef.current = saveQueueRef.current.catch(() => {}).then(async () => {
+      if (savedSnapshotKeyRef.current === snapshotKey) return;
+      if (hasProjectContent) await saveCreatorProject(persistenceSnapshot);
+      else await clearSavedCreatorProject();
+      savedSnapshotKeyRef.current = snapshotKey;
+      setProjectSaveStatus(currentSnapshotKeyRef.current !== snapshotKey
+        ? "dirty" : hasProjectContent ? "saved" : "empty");
+      setProjectSaveError(null);
+    }).catch((error: unknown) => {
+      setProjectSaveStatus("error");
+      setProjectSaveError(error instanceof Error ? error.message : "Unable to save the project locally.");
+    });
+  }, [hasProjectContent, persistenceSnapshot, snapshotKey]);
+
   const projectSaveLabel = useMemo(() => {
     if (projectSaveStatus === "loading") return "Loading saved project";
     if (projectSaveStatus === "saving") return "Saving project";
+    if (projectSaveStatus === "dirty") return "Unsaved changes";
     if (projectSaveStatus === "saved") return "Project saved";
     if (projectSaveStatus === "error") return "Save issue";
     return "No saved draft";
@@ -471,25 +500,32 @@ export default function HomePage() {
   const applyAutoCreatorSetup = useCallback(
     async () => {
       if (!audioFile || !audioAnalysis) return;
+      const runId = ++directorRunRef.current;
 
       setAutoSetupStatus("running");
       setAutoSetupSummary(
         "Auto Director is reading the track and choosing a starting setup."
       );
 
-      let lyricsText = audioTranscriptionText || videoCaptions.lyricsText;
+      let lyricsText = videoCaptions.lyricsText || audioTranscriptionText;
+      let captionCues = videoCaptions.lyricsText
+        ? videoCaptions.cues
+        : audioTranscriptionSegments;
       let usedLocalFallback = false;
 
       // Lyrics make captions smarter, but Auto Director can still work from
       // local audio analysis when OpenAI transcription is unavailable.
-      if (!lyricsText.trim()) {
-        const transcribedText = await retryAudioTranscription();
-        if (transcribedText) {
-          lyricsText = transcribedText;
+      if (!lyricsText.trim() && useDirectorTranscription) {
+        const transcription = await retryAudioTranscription();
+        if (transcription) {
+          lyricsText = transcription.text;
+          captionCues = transcription.segments;
         } else {
           usedLocalFallback = true;
         }
       }
+
+      if (runId !== directorRunRef.current) return;
 
       const setup = buildAutoCreatorSetup({
         fileName: audioFile.name,
@@ -498,8 +534,8 @@ export default function HomePage() {
       });
 
       pause();
-      setSongTitle(setup.trackInfo.songTitle);
-      setArtistName(setup.trackInfo.artistName);
+      setSongTitle((currentTitle) => currentTitle.trim() ? currentTitle : setup.trackInfo.songTitle);
+      setArtistName((currentArtist) => currentArtist.trim() ? currentArtist : setup.trackInfo.artistName);
       setBackgroundSource("generated");
       setBackgroundPresetId(setup.background.presetId);
       setBackgroundPrompt(setup.background.prompt);
@@ -512,7 +548,10 @@ export default function HomePage() {
       setEffectPreset(setup.style.effectPreset);
       setRandomSeed(setup.style.randomSeed);
       setVideoLayout(setup.style.layout);
-      setVideoCaptions(setup.style.captions);
+      setVideoCaptions({
+        ...setup.style.captions,
+        cues: setup.style.captions.mode === "lyrics" ? captionCues : [],
+      });
       setReactiveTimelineMode("auto");
       setCustomReactiveZones([]);
       setAutoSetupStatus("applied");
@@ -526,10 +565,13 @@ export default function HomePage() {
       audioAnalysis,
       audioFile,
       audioTranscriptionText,
+      audioTranscriptionSegments,
       pause,
       resetBackgroundGeneration,
       retryAudioTranscription,
       videoCaptions.lyricsText,
+      videoCaptions.cues,
+      useDirectorTranscription,
     ]
   );
 
@@ -571,9 +613,7 @@ export default function HomePage() {
           setReactiveTimelineMode(savedProject.style.reactiveTimelineMode);
           setCustomReactiveZones(savedProject.style.customReactiveZones);
           setVideoLayout(normalizeVideoLayout(savedProject.style.layout));
-          setVideoCaptions(
-            savedProject.style.captions ?? DEFAULT_VIDEO_CAPTIONS
-          );
+          setVideoCaptions(normalizeVideoCaptions(savedProject.style.captions));
           setProjectSaveStatus("saved");
         } else {
           setProjectSaveStatus("empty");
@@ -600,64 +640,43 @@ export default function HomePage() {
 
     return () => {
       isCancelled = true;
+      if (!hasLoadedSavedProject.current) hasStartedProjectRestore.current = false;
     };
   }, [pause, restoreGeneratedBackground]);
 
+  const projectRestoreFinished = projectSaveStatus !== "loading";
   useEffect(() => {
+    currentSnapshotKeyRef.current = snapshotKey;
     if (!hasLoadedSavedProject.current) return;
-
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-
-    if (!hasProjectContent) {
-      saveTimerRef.current = setTimeout(() => {
-        void clearSavedCreatorProject()
-          .then(() => {
-            setProjectSaveStatus("empty");
-            setProjectSaveError(null);
-          })
-          .catch((error) => {
-            setProjectSaveStatus("error");
-            setProjectSaveError(
-              error instanceof Error
-                ? error.message
-                : "Unable to clear the saved project."
-            );
-          });
-      }, 300);
+    if (savedSnapshotKeyRef.current === null) {
+      savedSnapshotKeyRef.current = snapshotKey;
       return;
     }
-
-    saveTimerRef.current = setTimeout(() => {
-      setProjectSaveStatus("saving");
-      setProjectSaveError(null);
-      void saveCreatorProject(persistenceSnapshot)
-        .then(() => {
-          setProjectSaveStatus("saved");
-          setProjectSaveError(null);
-        })
-        .catch((error) => {
-          setProjectSaveStatus("error");
-          setProjectSaveError(
-            error instanceof Error
-              ? error.message
-              : "Unable to save the project locally."
-          );
-        });
-    }, 700);
+    if (savedSnapshotKeyRef.current === snapshotKey) {
+      const statusTimer = setTimeout(() => setProjectSaveStatus(hasProjectContent ? "saved" : "empty"), 0);
+      return () => clearTimeout(statusTimer);
+    }
+    const dirtyTimer = setTimeout(() => setProjectSaveStatus("dirty"), 0);
+    if (autoSaveEnabled) saveTimerRef.current = setTimeout(saveCurrentProject, 1000);
 
     return () => {
+      clearTimeout(dirtyTimer);
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
       }
     };
-  }, [hasProjectContent, persistenceSnapshot]);
+  }, [autoSaveEnabled, saveCurrentProject, snapshotKey, projectRestoreFinished, hasProjectContent]);
 
   const handleAudioFileChange = useCallback(
     (nextAudioFile: File | null) => {
+      directorRunRef.current += 1;
       pause();
       setAudioFile(nextAudioFile);
+      setCustomReactiveZones([]);
+      setReactiveTimelineMode("auto");
+      setVideoCaptions((currentCaptions) => ({
+        ...currentCaptions, mode: "off", cues: [], lyricsText: "",
+      }));
       setAutoSetupStatus(nextAudioFile ? "manual" : "waiting");
       setAutoSetupSummary(
         nextAudioFile
@@ -690,6 +709,7 @@ export default function HomePage() {
     if (!shouldReset) return;
 
     pause();
+    directorRunRef.current += 1;
     setAudioFile(null);
     setSongTitle("");
     setArtistName("");
@@ -745,19 +765,14 @@ export default function HomePage() {
   };
 
   return (
-    <main data-ui-theme={interfaceTheme} className="app-shell min-h-screen overflow-x-hidden px-4 py-5 text-gray-950 sm:px-6">
-      <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-5">
-        <header className="app-header flex flex-col gap-4 rounded-lg px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-cyan-700">
+    <main data-ui-theme={interfaceTheme} className="app-shell min-h-screen px-4 py-4 text-gray-950 sm:px-6">
+      <div className="mx-auto flex w-full min-w-0 max-w-[1600px] flex-col gap-4">
+        <header className="app-header creator-toolbar flex flex-wrap items-center justify-between gap-4 rounded-lg px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="brand-symbol"><Music aria-hidden="true" className="h-5 w-5" /></span>
+            <h1 className="text-base font-semibold text-gray-950">
               AI Music Video Generator
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-950">
-              Create a YouTube-ready music video
             </h1>
-            <p className="mt-2 max-w-3xl text-sm text-gray-600">
-              Follow the steps, review the preview, then export the final MP4.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -765,6 +780,33 @@ export default function HomePage() {
               value={interfaceTheme}
               onChange={setInterfaceTheme}
             />
+            <StatusPill
+              label={projectSaveLabel}
+              tone={projectSaveTone}
+              className={projectSaveStatus === "loading" ? "project-loading-status toolbar-save-status" : "toolbar-save-status"}
+            />
+            <button type="button" onClick={saveCurrentProject}
+              disabled={projectSaveStatus === "loading" || projectSaveStatus === "saving"}
+              className="toolbar-save inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium disabled:opacity-50">
+              <Save aria-hidden="true" className="h-4 w-4" />Save
+            </button>
+            <details className="workspace-settings" onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.currentTarget.open = false;
+                event.currentTarget.querySelector("summary")?.focus();
+              }
+            }} onBlur={(event) => {
+              if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+            }}>
+              <summary title="Workspace settings" aria-label="Workspace settings" className="settings-trigger list-none">
+                <Settings2 aria-hidden="true" className="h-4 w-4" />
+              </summary>
+              <div className="workspace-settings-menu">
+                <p className="mb-3 text-xs font-semibold uppercase text-gray-500">Workspace</p>
+            <label className="flex items-center justify-between gap-4 py-2 text-sm text-gray-700">
+              Autosave
+              <input type="checkbox" checked={autoSaveEnabled} onChange={(event) => setAutoSaveEnabled(event.target.checked)} />
+            </label>
             <button
               type="button"
               aria-pressed={isDevMode}
@@ -788,48 +830,41 @@ export default function HomePage() {
               <RotateCcw aria-hidden="true" className="h-4 w-4" />
               Reset
             </button>
-            <StatusPill
-              label={projectSaveLabel}
-              tone={projectSaveTone}
-              className={projectSaveStatus === "loading" ? "project-loading-status" : ""}
-            />
-            <StatusPill
-              label={isExportReady ? "Ready to export" : "Needs input"}
-              tone={isExportReady ? "ready" : "waiting"}
-            />
-            <StatusPill
-              label={
-                audioAnalysis
-                  ? `${audioAnalysis.dropTimes.length} drop markers`
-                  : "Analysis pending"
-              }
-              tone={audioAnalysis ? "success" : "waiting"}
-            />
+              </div>
+            </details>
           </div>
         </header>
 
         <div
           ref={creatorGridRef}
-          className="creator-grid grid w-full min-w-0 max-w-full gap-5 lg:h-[calc(100vh-10.5rem)] lg:min-h-[680px] lg:gap-0 lg:overflow-hidden"
+          className="creator-grid grid w-full min-w-0 max-w-full gap-4 lg:h-[calc(100dvh-7rem)] lg:min-h-[540px] lg:gap-0 lg:overflow-hidden"
           style={{ "--editor-width": `${editorWidth}px` } as CSSProperties}
         >
-          <section className="workspace-column editor-column min-w-0 overflow-x-hidden flex flex-col gap-4 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-3">
-            <Panel className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-950 text-white">
-                  <Sparkles aria-hidden="true" className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-950">
-                    Guided setup
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Complete the essentials in order. Optional branding can be
-                    added as you go.
-                  </p>
-                </div>
-              </div>
-            </Panel>
+          <section className="workspace-column editor-column min-w-0 flex flex-col lg:h-full lg:min-h-0 lg:pr-3">
+            <div className="editor-tab-bar" role="tablist" aria-label="Video editor">
+              {([
+                { id: "audio", label: "Audio", icon: Music },
+                { id: "branding", label: "Background & Branding", icon: FileText },
+                { id: "visuals", label: "Visuals", icon: Palette },
+                { id: "captions", label: "Captions", icon: Captions },
+              ] as const).map(({ id, label, icon: Icon }) => (
+                <button key={id} type="button" role="tab" id={`tab-${id}`} aria-controls={id === "visuals" || id === "captions" ? "editor-design" : `editor-${id}`}
+                  aria-selected={editorTab === id} tabIndex={editorTab === id ? 0 : -1}
+                  onClick={() => setEditorTab(id)}
+                  onKeyDown={(event) => {
+                    const tabs = ["audio", "branding", "visuals", "captions"] as const;
+                    const next = event.key === "ArrowRight" ? (tabs.indexOf(id) + 1) % 4
+                      : event.key === "ArrowLeft" ? (tabs.indexOf(id) + 3) % 4
+                      : event.key === "Home" ? 0 : event.key === "End" ? 3 : null;
+                    if (next === null) return;
+                    event.preventDefault(); setEditorTab(tabs[next]);
+                    document.getElementById(`tab-${tabs[next]}`)?.focus();
+                  }}>
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" /><span>{label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="editor-scroll min-w-0 flex-1 overflow-x-hidden lg:min-h-0 lg:overflow-y-auto">
 
             {projectSaveError && (
               <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -842,7 +877,9 @@ export default function HomePage() {
               onChange={setAiConnection}
             />
 
+            <div role="tabpanel" id="editor-audio" aria-labelledby="tab-audio" hidden={editorTab !== "audio"}>
             <WorkflowStepCard
+              flat
               stepNumber={1}
               initialOpen={false}
               title="Audio Setup"
@@ -950,6 +987,10 @@ export default function HomePage() {
                     )}
                   </div>
                 )}
+                <label className="mt-3 flex items-center gap-2 text-sm text-cyan-900">
+                  <input type="checkbox" checked={useDirectorTranscription} onChange={(event) => setUseDirectorTranscription(event.target.checked)} />
+                  Transcribe lyrics with connected provider
+                </label>
                 <button
                   type="button"
                   disabled={
@@ -992,8 +1033,11 @@ export default function HomePage() {
                 </p>
               )}
             </WorkflowStepCard>
+            </div>
 
+            <div role="tabpanel" id="editor-branding" aria-labelledby="tab-branding" hidden={editorTab !== "branding"}>
             <WorkflowStepCard
+              flat
               stepNumber={2}
               title="Track & Branding"
               description="Add track information, artwork, and your logo."
@@ -1051,11 +1095,16 @@ export default function HomePage() {
                 surface="plain"
               />
             </WorkflowStepCard>
+            </div>
 
+            <div role="tabpanel" id="editor-design"
+              aria-labelledby={`tab-${editorTab === "captions" ? "captions" : "visuals"}`}
+              hidden={editorTab !== "visuals" && editorTab !== "captions"}>
             <WorkflowStepCard
+              flat
               stepNumber={3}
-              title="Visual Design"
-              description="Choose the theme, overlays, visualizers, and motion."
+              title={editorTab === "captions" ? "Captions" : "Visual Design"}
+              description={editorTab === "captions" ? "Create lyrics and fine-tune their timing." : "Choose the look, layers, and movement for your video."}
               icon={Palette}
               isReady={isVisualStepReady}
               missingItems={visualMissingItems}
@@ -1075,6 +1124,18 @@ export default function HomePage() {
               }
             >
               <VisualDetails
+                view={editorTab === "captions" ? "captions" : "visuals"}
+                onTranscribeLyrics={async () => {
+                  const transcription = await retryAudioTranscription();
+                  if (!transcription) return;
+                  setVideoCaptions((captions) => normalizeVideoCaptions({
+                    ...captions, mode: "lyrics", lyricsText: transcription.text,
+                    cues: transcription.segments,
+                  }));
+                }}
+                isTranscribingLyrics={audioTranscriptionStatus === "transcribing"}
+                canTranscribeLyrics={audioFile !== null}
+                transcriptionError={audioTranscriptionError}
                 videoTheme={videoTheme}
                 setVideoTheme={setVideoTheme}
                 visualizerColor={visualizerColor}
@@ -1104,6 +1165,8 @@ export default function HomePage() {
                 surface="plain"
               />
             </WorkflowStepCard>
+            </div>
+            </div>
           </section>
 
           <button
@@ -1122,7 +1185,7 @@ export default function HomePage() {
               preparedAssets={preparedAssets}
               blockingReasons={exportBlockingReasons}
               playerRef={playerRef}
-            />
+            >
 
             <PlaybackControls
               audioFile={audioFile}
@@ -1135,7 +1198,9 @@ export default function HomePage() {
               volume={volume}
               setVolume={setVolume}
               showDetailedControls={false}
+              compact
             />
+            </RemotionPreviewPanel>
 
             <VideoRenderActions
               manifest={exportManifest}
@@ -1145,10 +1210,6 @@ export default function HomePage() {
               currentTime={currentTime}
             />
 
-            <ProductionSummaryPanel
-              manifest={exportManifest}
-              blockingReasons={exportBlockingReasons}
-            />
           </section>
         </div>
 

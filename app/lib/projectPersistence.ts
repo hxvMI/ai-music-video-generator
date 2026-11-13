@@ -95,10 +95,12 @@ function runProjectStoreRequest<T>(
         const store = transaction.objectStore(PROJECT_STORE_NAME);
         const request = createRequest(store);
 
-        request.onsuccess = () => resolve(request.result);
         request.onerror = () =>
           reject(request.error ?? new Error("Project storage request failed."));
-        transaction.oncomplete = () => database.close();
+        transaction.oncomplete = () => {
+          database.close();
+          resolve(request.result);
+        };
         transaction.onerror = () => {
           database.close();
           reject(

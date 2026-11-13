@@ -25,12 +25,13 @@ export default function InterfaceThemePicker({ value, onChange }: Props) {
             key={theme.value}
             type="button"
             aria-pressed={value === theme.value}
+            aria-label={theme.label}
             onClick={() => onChange(theme.value)}
             title={`${theme.label} interface theme`}
             className={value === theme.value ? "is-active" : ""}
           >
             <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-            {theme.label}
+            <span>{theme.label}</span>
           </button>
         );
       })}

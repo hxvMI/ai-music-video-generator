@@ -25,9 +25,12 @@ export function resolveServerAiProvider(request: Request): ServerAiProvider | nu
       : null;
   }
 
+  // An incomplete personal connection must not silently spend the shared account's allowance.
+  if (selectedProvider !== "server") return null;
+
   const cloudflareAccountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
   const cloudflareApiToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
-  if (process.env.AI_PROVIDER === "cloudflare" && cloudflareAccountId && cloudflareApiToken) {
+  if (cloudflareAccountId && cloudflareApiToken) {
     return {
       provider: "cloudflare",
       accountId: cloudflareAccountId,
@@ -35,8 +38,7 @@ export function resolveServerAiProvider(request: Request): ServerAiProvider | nu
     };
   }
 
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  return apiKey ? { provider: "openai", apiKey } : null;
+  return null;
 }
 
 export function getCloudflareModelUrl(accountId: string, model: string) {

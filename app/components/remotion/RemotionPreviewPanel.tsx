@@ -2,7 +2,7 @@
 
 import { Player, type PlayerRef } from "@remotion/player";
 import { MonitorPlay } from "lucide-react";
-import { memo, useMemo } from "react";
+import { memo, useMemo, type ReactNode } from "react";
 
 import MusicVideoComposition from "@/components/remotion/MusicVideoComposition";
 import Panel from "@/components/ui/Panel";
@@ -18,6 +18,7 @@ type RemotionPreviewPanelProps = {
   preparedAssets: PreparedVideoAssets;
   blockingReasons: string[];
   playerRef: (instance: PlayerRef | null) => void;
+  children?: ReactNode;
 };
 
 function RemotionPreviewPanel({
@@ -25,6 +26,7 @@ function RemotionPreviewPanel({
   preparedAssets,
   blockingReasons,
   playerRef,
+  children,
 }: RemotionPreviewPanelProps) {
   const isReady = blockingReasons.length === 0;
   const compositionConfig = useMemo(
@@ -33,7 +35,7 @@ function RemotionPreviewPanel({
   );
 
   return (
-    <Panel className="p-4">
+    <Panel className="preview-surface p-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-950 text-white">
@@ -78,7 +80,7 @@ function RemotionPreviewPanel({
           compositionWidth={compositionConfig.compositionWidth}
           compositionHeight={compositionConfig.compositionHeight}
           fps={compositionConfig.fps}
-          controls
+          controls={compositionConfig.durationInFrames > 1}
           acknowledgeRemotionLicense
           style={{
             display: "block",
@@ -89,6 +91,8 @@ function RemotionPreviewPanel({
           }}
         />
       </div>
+
+      {children && <div className="preview-footer">{children}</div>}
 
       {!isReady && (
         <p className="mt-3 text-sm text-gray-600">

@@ -298,7 +298,7 @@ export default function VideoRenderActions({
         />
       </div>
 
-      <div className="mt-4 grid gap-3 rounded-lg border bg-white p-3 text-sm">
+      <div className="mt-4 grid gap-3 text-sm">
         <div className="grid grid-cols-2 overflow-hidden rounded-lg border">
           {(["full", "short"] as ExportLengthMode[]).map((mode) => (
             <button
@@ -369,7 +369,36 @@ export default function VideoRenderActions({
         )}
       </div>
 
-      <div className="mt-4 grid gap-3 rounded-lg border bg-gray-50 p-3 text-sm md:grid-cols-2">
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={isBlocked || isExporting}
+          onClick={handleExportMp4}
+          className="inline-flex items-center gap-2 rounded border border-gray-950 bg-gray-950 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {failedMessage ? (
+            <RefreshCcw aria-hidden="true" className="h-4 w-4" />
+          ) : (
+            <Download aria-hidden="true" className="h-4 w-4" />
+          )}
+          {exportButtonLabel}
+        </button>
+
+        {!isBlocked && !renderJob && !renderJobError && (
+          <p className="text-sm text-gray-600">
+            Ready to render with the current preview settings.
+          </p>
+        )}
+        {!isBlocked && hasChangedSinceExport && !isExporting && (
+          <p className="text-sm font-medium text-amber-700">
+            Project settings changed since the last export.
+          </p>
+        )}
+      </div>
+
+      <details className="export-summary mt-4 border-y border-gray-200 py-3">
+        <summary className="cursor-pointer text-sm font-medium text-gray-700">Video details</summary>
+      <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
         {/* LESSON CHECKPOINT - Export summary:
             This is derived display data. The actual render job still receives
             the manifest, uploaded files, and generated render plan when the
@@ -427,6 +456,7 @@ export default function VideoRenderActions({
           </p>
         </div>
       </div>
+      </details>
 
       {isBlocked && (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
@@ -439,32 +469,6 @@ export default function VideoRenderActions({
         </div>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          disabled={isBlocked || isExporting}
-          onClick={handleExportMp4}
-          className="inline-flex items-center gap-2 rounded border border-gray-950 bg-gray-950 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {failedMessage ? (
-            <RefreshCcw aria-hidden="true" className="h-4 w-4" />
-          ) : (
-            <Download aria-hidden="true" className="h-4 w-4" />
-          )}
-          {exportButtonLabel}
-        </button>
-
-        {!isBlocked && !renderJob && !renderJobError && (
-          <p className="text-sm text-gray-600">
-            Ready to render with the current preview settings.
-          </p>
-        )}
-        {!isBlocked && hasChangedSinceExport && !isExporting && (
-          <p className="text-sm font-medium text-amber-700">
-            Project settings changed since the last export.
-          </p>
-        )}
-      </div>
 
       {isExporting && renderJob && (
         <div className="mt-4 rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-sm">

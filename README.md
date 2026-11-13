@@ -20,6 +20,7 @@ so the composition shown in the editor uses the same data as the exported MP4.
 - Local audio analysis for energy, onsets, drops, and reactive arrangements
 - Multiple independently positioned, scaled, rotated, and colored visualizers
 - Configurable titles, captions, timer, and styled progress bars
+- Provider-timed lyric captions with a manual-text fallback
 - Local background templates with optional OpenAI or Cloudflare generation
 - Optional lyric transcription through OpenAI or Cloudflare Workers AI
 - Manual, Random, and section-aware Auto visual modes
@@ -68,10 +69,13 @@ intend to use:
 ```env
 OPENAI_API_KEY=your_api_key_here
 
-# Optional Cloudflare server default
+# Cloudflare App default and its shared request-credit ledger
 AI_PROVIDER=cloudflare
 CLOUDFLARE_ACCOUNT_ID=your_account_id_here
 CLOUDFLARE_API_TOKEN=your_workers_ai_token_here
+CLOUDFLARE_D1_DATABASE_ID=your_database_id_here
+CLOUDFLARE_D1_API_TOKEN=your_d1_write_token_here
+APP_AI_DAILY_CREDITS=100
 ```
 
 Restart the development server after changing `.env.local`. Never prefix these
@@ -80,6 +84,14 @@ values with `NEXT_PUBLIC_` and never commit `.env.local`.
 Creators can alternatively enter personal provider credentials in the app.
 Those values live only in the current browser tab's React memory and are not
 written to project storage, render manifests, saved presets, or exports.
+
+App default always uses Cloudflare and requires the D1 shared-credit ledger.
+It does not fall back to a server OpenAI key. See [DEPLOYMENT.md](DEPLOYMENT.md)
+for account setup. Personal connections continue to work without D1.
+
+The editor autosaves after a one-second pause following an actual project edit.
+Playback, status updates, and theme changes do not write project data. Use Save
+for an immediate save, or turn off Autosave for manual saving only.
 
 ## How It Works
 
@@ -113,12 +125,14 @@ remotion/              Remotion bundle entry point
 
 ```bash
 npm run dev      # Start the local editor
+npm run test     # Run automated unit tests
 npm run lint     # Run ESLint
 npm run build    # Type-check and create a production build
 npm run start    # Serve the production build
 ```
 
-Run both `npm run lint` and `npm run build` before opening a pull request.
+Run `npm run test`, `npm run lint`, and `npm run build` before opening a pull
+request.
 
 ## Deployment
 
@@ -146,7 +160,7 @@ whether the issue affects preview, export, or both.
 
 The editor and local MP4 workflow are functional and under active development.
 Current priorities include stronger persistence, reusable project templates,
-more typography controls, and YouTube packaging tools.
+caption timing tools, hosted rendering, and YouTube packaging tools.
 
 ## License
 

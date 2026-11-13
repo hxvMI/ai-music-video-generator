@@ -188,14 +188,14 @@ export function buildAutomaticReactiveTimeline(
 ): ReactiveTimeline {
   const duration = analysis?.durationSeconds ?? 0;
 
-  if (!analysis || duration <= 0 || analysis.points.length === 0) {
+  if (!analysis || !Number.isFinite(duration) || duration <= 0) {
     return {
       mode: "auto",
       zones: [],
     };
   }
 
-  if (duration < 12) {
+  if (duration < 12 || analysis.points.length === 0) {
     return {
       mode: "auto",
       zones: assignZoneIds([createZone("steady", 0, duration)]),
@@ -283,7 +283,7 @@ export function getActiveReactiveZone(
       (zone, index) =>
         currentTime >= zone.startSeconds &&
         (currentTime < zone.endSeconds || index === zones.length - 1)
-    ) ?? zones[zones.length - 1]
+    ) ?? (currentTime < zones[0].startSeconds ? zones[0] : zones[zones.length - 1])
   );
 }
 
@@ -310,7 +310,8 @@ export function getReactiveZoneIntensity(
     currentTime < activeZone.startSeconds + transitionSeconds
   ) {
     const progress = clamp(
-      (currentTime - activeZone.startSeconds) / transitionSeconds,
+      (currentTime - activeZone.startSeconds + transitionSeconds) /
+        (transitionSeconds * 2),
       0,
       1
     );
@@ -328,7 +329,7 @@ export function getReactiveZoneIntensity(
   ) {
     const progress = clamp(
       (currentTime - (activeZone.endSeconds - transitionSeconds)) /
-        transitionSeconds,
+        (transitionSeconds * 2),
       0,
       1
     );
@@ -383,7 +384,7 @@ export function moveReactiveBoundary(
   const leftZone = zones[leftZoneIndex];
   const rightZone = zones[leftZoneIndex + 1];
 
-  if (!leftZone || !rightZone) return zones;
+  if (!leftZone || !rightZone || !Number.isFinite(requestedTime)) return zones;
 
   const safeTime = roundTime(
     clamp(
@@ -459,6 +460,7 @@ export function isValidReactiveTimeline(
   zones: ReactiveZone[],
   duration: number
 ) {
+  if (!Number.isFinite(duration) || duration < 0) return false;
   if (zones.length === 0) return duration <= 0;
   if (zones.length > MAX_REACTIVE_ZONES) return false;
   if (Math.abs(zones[0].startSeconds) > 0.001) return false;
@@ -471,7 +473,10 @@ export function isValidReactiveTimeline(
   return zones.every((zone, index) => {
     const nextZone = zones[index + 1];
     const hasValidDuration =
-      zone.endSeconds - zone.startSeconds >= MIN_REACTIVE_ZONE_SECONDS;
+      Number.isFinite(zone.startSeconds) &&
+      Number.isFinite(zone.endSeconds) &&
+      Number.isFinite(zone.intensity) && zone.intensity >= 0 && zone.intensity <= 1 &&
+      zone.endSeconds - zone.startSeconds >= Math.min(MIN_REACTIVE_ZONE_SECONDS, duration);
     const joinsNext =
       !nextZone ||
       Math.abs(zone.endSeconds - nextZone.startSeconds) <= 0.001;

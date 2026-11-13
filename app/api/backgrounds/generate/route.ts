@@ -11,6 +11,7 @@ import type {
   BackgroundPromptFields,
 } from "@/types/videoProject";
 import { getCloudflareModelUrl, resolveServerAiProvider } from "@/lib/serverAiProvider";
+import { markAppProviderExhausted, reserveAppAiCredit } from "@/lib/appAiCredits";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -30,7 +31,7 @@ type OpenAiImageResponse = {
 };
 type CloudflareImageResponse = {
   result?: { image?: string };
-  errors?: Array<{ message?: string }>;
+  errors?: Array<{ message?: string; code?: number }>;
 };
 
 function getProviderErrorMessage(
@@ -170,6 +171,8 @@ export async function POST(request: Request) {
   }
 
   let providerResponse: Response;
+  const creditError = await reserveAppAiCredit(request);
+  if (creditError) return creditError;
 
   try {
     const prompt = buildOpenAiBackgroundPrompt(generationRequest);
@@ -227,6 +230,9 @@ export async function POST(request: Request) {
   }
 
   if (!providerResponse.ok) {
+    if (provider.provider === "cloudflare" && (providerBody as CloudflareImageResponse).errors?.some((error) => error.code === 3036)) {
+      await markAppProviderExhausted(request);
+    }
     console.error("OpenAI image generation failed.", {
       status: providerResponse.status,
       provider: provider.provider,

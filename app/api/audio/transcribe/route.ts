@@ -5,16 +5,22 @@ import type {
   AudioTranscriptionResponse,
 } from "@/types/videoProject";
 import { getCloudflareModelUrl, resolveServerAiProvider } from "@/lib/serverAiProvider";
+import { markAppProviderExhausted, reserveAppAiCredit } from "@/lib/appAiCredits";
+import {
+  parseWebVttCaptionCues,
+  segmentsToCaptionCues,
+} from "@/lib/transcriptionCaptions";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const OPENAI_TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
-const CLOUDFLARE_TRANSCRIPTION_MODEL = "@cf/openai/whisper";
+const OPENAI_TRANSCRIPTION_MODEL = "gpt-transcribe";
+const CLOUDFLARE_TRANSCRIPTION_MODEL = "@cf/openai/whisper-large-v3-turbo";
 const MAX_AUDIO_SIZE_BYTES = 25 * 1024 * 1024;
 
 type OpenAiTranscriptionResponse = {
   text?: string;
+  segments?: Array<{ start?: number; end?: number; text?: string }>;
   error?: {
     code?: string;
     message?: string;
@@ -22,9 +28,14 @@ type OpenAiTranscriptionResponse = {
 };
 
 type CloudflareTranscriptionResponse = {
-  result?: { text?: string };
+  result?: {
+    text?: string;
+    vtt?: string;
+    segments?: Array<{ start?: number; end?: number; text?: string;
+      words?: Array<{ start?: number; end?: number; word?: string }> }>;
+  };
   success?: boolean;
-  errors?: Array<{ message?: string }>;
+  errors?: Array<{ message?: string; code?: number }>;
 };
 
 function errorResponse(
@@ -109,13 +120,16 @@ export async function POST(request: Request) {
   }
 
   let providerResponse: Response;
+  const creditError = await reserveAppAiCredit(request);
+  if (creditError) return creditError;
 
   try {
     if (provider.provider === "openai") {
       const providerFormData = new FormData();
       providerFormData.append("file", audioFile, audioFile.name);
       providerFormData.append("model", OPENAI_TRANSCRIPTION_MODEL);
-      providerFormData.append("response_format", "json");
+      providerFormData.append("response_format", "verbose_json");
+      providerFormData.append("timestamp_granularities[]", "segment");
       providerResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
         method: "POST",
         headers: { Authorization: `Bearer ${provider.apiKey}` },
@@ -129,16 +143,22 @@ export async function POST(request: Request) {
           method: "POST",
           headers: {
             Authorization: `Bearer ${provider.apiToken}`,
-            "Content-Type": audioFile.type || "application/octet-stream",
+            "Content-Type": "application/json",
           },
-          body: audioFile,
+          body: JSON.stringify({
+            audio: Buffer.from(await audioFile.arrayBuffer()).toString("base64"),
+            task: "transcribe",
+            // Music contains long instrumental passages; avoid carrying invented lyrics forward.
+            condition_on_previous_text: false,
+            vad_filter: false,
+          }),
           signal: request.signal,
         }
       );
     }
   } catch (reason) {
     console.error(
-      "OpenAI transcription request failed before receiving a response.",
+      "Transcription request failed before receiving a response.",
       reason
     );
     return errorResponse(
@@ -160,8 +180,12 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!providerResponse.ok) {
-    console.error("OpenAI transcription failed.", {
+  if (!providerResponse.ok || (provider.provider === "cloudflare" &&
+      (providerBody as CloudflareTranscriptionResponse).success === false)) {
+    if (provider.provider === "cloudflare" && (providerBody as CloudflareTranscriptionResponse).errors?.some((error) => error.code === 3036)) {
+      await markAppProviderExhausted(request);
+    }
+    console.error("Transcription failed.", {
       status: providerResponse.status,
       provider: provider.provider,
       requestId: providerResponse.headers.get("x-request-id"),
@@ -188,8 +212,25 @@ export async function POST(request: Request) {
     );
   }
 
+  const segments = provider.provider === "openai"
+    ? segmentsToCaptionCues(
+        (providerBody as OpenAiTranscriptionResponse).segments ?? []
+      )
+    : (() => {
+        const cloudflareResult =
+          (providerBody as CloudflareTranscriptionResponse).result;
+        const directSegments = segmentsToCaptionCues(
+          cloudflareResult?.segments ?? []
+        );
+
+        return directSegments.length > 0
+          ? directSegments
+          : parseWebVttCaptionCues(cloudflareResult?.vtt);
+      })();
+
   return Response.json({
     text,
+    segments,
     provider: provider.provider,
     model: provider.provider === "openai" ? OPENAI_TRANSCRIPTION_MODEL : CLOUDFLARE_TRANSCRIPTION_MODEL,
     transcriptId: randomUUID(),

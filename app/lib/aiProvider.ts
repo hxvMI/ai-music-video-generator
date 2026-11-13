@@ -8,7 +8,7 @@ export const CLOUDFLARE_TOKEN_HEADER = "x-creator-cloudflare-token";
 export function buildAiProviderHeaders(
   connection: AiProviderConnection
 ): Record<string, string> {
-  if (connection.provider === "openai" && connection.openAiApiKey.trim()) {
+  if (connection.provider === "openai") {
     return {
       [AI_PROVIDER_HEADER]: "openai",
       [OPENAI_KEY_HEADER]: connection.openAiApiKey.trim(),
@@ -16,9 +16,7 @@ export function buildAiProviderHeaders(
   }
 
   if (
-    connection.provider === "cloudflare" &&
-    connection.cloudflareAccountId.trim() &&
-    connection.cloudflareApiToken.trim()
+    connection.provider === "cloudflare"
   ) {
     return {
       [AI_PROVIDER_HEADER]: "cloudflare",
