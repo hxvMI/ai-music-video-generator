@@ -910,9 +910,6 @@ export default function HomePage() {
                       <p className="text-sm font-semibold text-cyan-950">
                         Auto Director
                       </p>
-                      <span className="rounded border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-900">
-                        Alpha
-                      </span>
                     </div>
                     <p className="mt-1 text-sm text-cyan-900">
                       {autoSetupSummary}
