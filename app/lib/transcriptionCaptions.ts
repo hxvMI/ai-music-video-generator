@@ -56,6 +56,7 @@ export function segmentsToCaptionCues(segments: TimedTextSegment[]) {
         };
         for (const word of words) {
           const previous = group[group.length - 1];
+          // Start a new cue when a line gets long or the singer leaves a noticeable pause.
           if (previous && (
             group.map((item) => item.word!.trim()).join(" ").length + word.word!.trim().length + 1 > 56 ||
             word.end! - group[0].start! > 5 || word.start! - previous.end! > 0.8

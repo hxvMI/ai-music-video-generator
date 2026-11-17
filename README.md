@@ -8,6 +8,9 @@ so the composition shown in the editor uses the same data as the exported MP4.
 
 [Open AI Music Video Generator](https://ai-music-video-generator-nine.vercel.app/)
 
+The hosted app includes the editor, preview, and AI tools. MP4 export currently
+runs in the local app; the hosted version does not have a render worker connected.
+
 ## Screenshots
 
 ### Creator workspace
@@ -21,10 +24,12 @@ so the composition shown in the editor uses the same data as the exported MP4.
 - Multiple independently positioned, scaled, rotated, and colored visualizers
 - Configurable titles, captions, timer, and styled progress bars
 - Provider-timed lyric captions with a manual-text fallback
+- Editable caption timing and a whole-track timing shift
 - Local background templates with optional OpenAI or Cloudflare generation
 - Optional lyric transcription through OpenAI or Cloudflare Workers AI
 - Manual, Random, and section-aware Auto visual modes
 - Browser-saved visual presets with JSON import and export
+- Autosave after edits, manual saving, and shared App default AI credits
 - Local MP4 rendering through Remotion
 - Studio, Graphite, and high-contrast interface themes
 
@@ -63,31 +68,49 @@ Next.js prints the alternate local URL in the terminal.
 
 ### Optional AI providers
 
-Copy `.env.example` to `.env.local` and add only the provider credentials you
-intend to use:
+For a personal connection, select OpenAI or Cloudflare under **AI connection**
+and enter your credentials there. No server setup or D1 database is needed.
+Credentials stay in the current tab's memory and are not saved with projects,
+presets, or exported videos.
+
+To offer **App default** to everyone using your deployment, copy `.env.example`
+to `.env.local` and configure Cloudflare plus the shared-credit ledger:
 
 ```env
-OPENAI_API_KEY=your_api_key_here
-
 # Cloudflare App default and its shared request-credit ledger
 AI_PROVIDER=cloudflare
 CLOUDFLARE_ACCOUNT_ID=your_account_id_here
 CLOUDFLARE_API_TOKEN=your_workers_ai_token_here
 CLOUDFLARE_D1_DATABASE_ID=your_database_id_here
 CLOUDFLARE_D1_API_TOKEN=your_d1_write_token_here
-APP_AI_DAILY_CREDITS=100
+APP_AI_DAILY_CREDITS=10
 ```
 
 Restart the development server after changing `.env.local`. Never prefix these
 values with `NEXT_PUBLIC_` and never commit `.env.local`.
 
-Creators can alternatively enter personal provider credentials in the app.
-Those values live only in the current browser tab's React memory and are not
-written to project storage, render manifests, saved presets, or exports.
-
 App default always uses Cloudflare and requires the D1 shared-credit ledger.
 It does not fall back to a server OpenAI key. See [DEPLOYMENT.md](DEPLOYMENT.md)
 for account setup. Personal connections continue to work without D1.
+
+The shared balance counts requests, not Cloudflare's remaining compute quota.
+The provider can reach its own limit first. Add rate limiting and bot protection
+before offering unrestricted public access to your shared connection.
+
+### Lyrics and large audio files
+
+Choose **Transcribe lyrics** in the Captions tab to request a transcript.
+Provider timestamps are used when available; untimed text is distributed across
+the track as a fallback. Review the words and timing, especially for songs with
+heavy effects or long instrumental sections.
+
+Audio uploads above 4 MB are converted to a mono 16 kHz transcription copy in the
+browser and sent in 90-second chunks. Caption times are moved back onto the full
+song timeline. Your original audio stays unchanged for playback and export.
+Each chunk uses one shared credit when App default is selected. If a chunk
+fails, retrying restarts transcription and can use additional credits.
+
+### Saving your work
 
 The editor autosaves after a one-second pause following an actual project edit.
 Playback, status updates, and theme changes do not write project data. Use Save
@@ -126,13 +149,15 @@ remotion/              Remotion bundle entry point
 ```bash
 npm run dev      # Start the local editor
 npm run test     # Run automated unit tests
+npm run test:browser # Check editor workflows with Playwright
 npm run lint     # Run ESLint
 npm run build    # Type-check and create a production build
 npm run start    # Serve the production build
 ```
 
-Run `npm run test`, `npm run lint`, and `npm run build` before opening a pull
-request.
+Run the unit tests, lint, and build before opening a pull request. Run the browser
+suite for editor changes too. Its current setup uses Microsoft Edge and
+`npm.cmd` on Windows; adjust `playwright.config.ts` for another browser or OS.
 
 ## Deployment
 
@@ -144,9 +169,10 @@ capability split and deployment steps.
 
 ## Local Data and Privacy
 
-- Uploaded audio and images remain local unless explicitly sent to an AI route.
+- Media is stored in your browser project. Transcription sends audio to the
+  selected AI provider; local MP4 export uploads the chosen assets to the local server.
 - Personal API credentials are intentionally excluded from persistence.
-- Generated images are session-local data URLs.
+- Generated images are stored as data URLs and included in browser-saved projects.
 - Render jobs are written to `.render-jobs/`, which is excluded from Git.
 - Browser-saved projects and visual presets can be cleared through browser data.
 
@@ -158,9 +184,13 @@ whether the issue affects preview, export, or both.
 
 ## Project Status
 
-The editor and local MP4 workflow are functional and under active development.
-Current priorities include stronger persistence, reusable project templates,
-caption timing tools, hosted rendering, and YouTube packaging tools.
+The editor, AI backgrounds, timed captions, reactive arrangements, browser saves,
+and local MP4 workflow are functional. Hosted transcription supports large
+tracks through chunked uploads. AI output still needs review, and browser storage
+is not a cloud backup.
+
+Remaining deployment work includes public-use abuse protection and an online
+render backend. Online MP4 export is not available yet.
 
 ## License
 

@@ -52,6 +52,7 @@ export function useAudioTranscription(
     try {
       const uploads = await prepareTranscriptionUploads(audioFile, controller.signal);
       const results: Array<{ result: AudioTranscriptionResponse; offset: number }> = [];
+      // Send chunks one at a time. Stop on failure so we don't apply an incomplete transcript.
       for (const upload of uploads) {
         controller.signal.throwIfAborted();
         const formData = new FormData();

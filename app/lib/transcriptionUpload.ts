@@ -6,6 +6,7 @@ export const TRANSCRIPTION_SAMPLE_RATE = 16_000;
 export const TRANSCRIPTION_CHUNK_SECONDS = 90;
 
 export function encodeTranscriptionWav(samples: Float32Array, sampleRate: number) {
+  // A mono PCM WAV needs a 44-byte header, followed by two bytes per sample.
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
   const label = (offset: number, value: string) => {
@@ -39,6 +40,7 @@ export async function prepareTranscriptionUploads(file: File, signal: AbortSigna
   signal.throwIfAborted();
   const chunks = [];
   const length = TRANSCRIPTION_SAMPLE_RATE * TRANSCRIPTION_CHUNK_SECONDS;
+  // Keep each chunk's position in the song; the provider starts its timestamps at zero.
   for (let start = 0; start < mono.length; start += length) {
     const wav = encodeTranscriptionWav(mono.subarray(start, start + length), TRANSCRIPTION_SAMPLE_RATE);
     chunks.push({ file: new File([wav], `transcription-${chunks.length + 1}.wav`, { type: "audio/wav" }),
@@ -49,7 +51,7 @@ export async function prepareTranscriptionUploads(file: File, signal: AbortSigna
 
 export function mergeTranscriptionChunks(chunks: Array<{ result: AudioTranscriptionResponse; offset: number }>): AudioTranscriptionResponse {
   const first = chunks[0].result;
-  // Mixing timed and untimed chunks would silently omit lyrics; use the text fallback instead.
+  // If one chunk has no timestamps, keep the full transcript rather than showing partial lyrics.
   const allTimed = chunks.every(({ result }) => result.segments.length > 0);
   return { ...first, text: chunks.map(({ result }) => result.text).join("\n"),
     segments: allTimed ? chunks.flatMap(({ result, offset }, index) => result.segments.map((cue) => ({

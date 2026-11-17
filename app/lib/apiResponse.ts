@@ -1,5 +1,5 @@
 export async function readApiResponse<T>(response: Response, fallback: string): Promise<T> {
-  // Hosting errors can be plain text or HTML, even when our own route always returns JSON.
+  // Vercel can reject a request before our route runs, returning plain text instead of JSON.
   const raw = await response.text();
   let body: unknown;
   try { body = JSON.parse(raw); } catch { body = null; }
