@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { buildAiProviderHeaders } from "@/lib/aiProvider";
+import { readApiResponse } from "@/lib/apiResponse";
+import { mergeTranscriptionChunks, prepareTranscriptionUploads } from "@/lib/transcriptionUpload";
 
 import type {
   AiProviderConnection,
-  AudioTranscriptionErrorResponse,
   AudioTranscriptionResponse,
 } from "@/types/videoProject";
 
@@ -44,32 +45,30 @@ export function useAudioTranscription(
     }
 
     const controller = new AbortController();
-    const formData = new FormData();
-    formData.append("audio", audioFile);
     abortControllerRef.current = controller;
     setStatus("transcribing");
     setError(null);
 
     try {
-      const response = await fetch("/api/audio/transcribe", {
-        method: "POST",
-        headers: buildAiProviderHeaders(connection),
-        body: formData,
-        signal: controller.signal,
-      });
-      const responseBody = (await response.json()) as
-        | AudioTranscriptionResponse
-        | AudioTranscriptionErrorResponse;
+      const uploads = await prepareTranscriptionUploads(audioFile, controller.signal);
+      const results: Array<{ result: AudioTranscriptionResponse; offset: number }> = [];
+      for (const upload of uploads) {
+        controller.signal.throwIfAborted();
+        const formData = new FormData();
+        formData.append("audio", upload.file);
+        const response = await fetch("/api/audio/transcribe", {
+          method: "POST",
+          headers: buildAiProviderHeaders(connection),
+          body: formData,
+          signal: controller.signal,
+        });
+        const result = await readApiResponse<AudioTranscriptionResponse>(response, "Unable to transcribe audio.");
+        if (typeof result.text !== "string" || !Array.isArray(result.segments)) throw new Error("The transcription provider returned an invalid transcript.");
+        results.push({ result, offset: upload.offset });
+      }
+      const responseBody = mergeTranscriptionChunks(results);
 
       if (controller.signal.aborted || abortControllerRef.current !== controller) return null;
-
-      if (!response.ok || "error" in responseBody) {
-        throw new Error(
-          "error" in responseBody
-            ? responseBody.error
-            : "Unable to transcribe audio."
-        );
-      }
 
       setText(responseBody.text);
       setSegments(responseBody.segments ?? []);

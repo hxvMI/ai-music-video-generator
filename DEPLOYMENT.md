@@ -90,9 +90,13 @@ and FFmpeg, and expects later polling requests to reach the same filesystem.
 Vercel Functions do not guarantee that persistent process/filesystem model.
 
 Vercel Functions also cap request and response bodies at 4.5 MB. Most music
-files exceed that limit, so both full-track render uploads and many audio
-transcription requests need direct object-storage uploads before they can be
-production-ready online.
+files exceed that limit, so full-track render uploads need direct object-storage
+uploads before they can be
+production-ready online. Transcription uploads above 4 MB are downmixed in the
+browser to mono 16 kHz WAV and sent sequentially in 90-second chunks. The original
+track remains unchanged for playback and export. Each chunk uses one shared AI
+credit; successful chunk timestamps are shifted back onto the song timeline.
+If any chunk fails, the request stops rather than applying incomplete lyrics.
 
 ## Path to Online MP4 Export
 

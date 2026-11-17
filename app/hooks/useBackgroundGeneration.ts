@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getBackgroundRequestFingerprint } from "@/lib/backgroundStudio";
 import { buildAiProviderHeaders } from "@/lib/aiProvider";
+import { readApiResponse } from "@/lib/apiResponse";
 import type {
-  BackgroundGenerationErrorResponse,
   BackgroundGenerationRequest,
   BackgroundGenerationResponse,
   BackgroundPresetId,
@@ -71,16 +71,10 @@ export function useBackgroundGeneration({
         body: JSON.stringify(submittedRequest),
         signal: controller.signal,
       });
-      const responseBody = (await response.json()) as
-        | BackgroundGenerationResponse
-        | BackgroundGenerationErrorResponse;
-
-      if (!response.ok || "error" in responseBody) {
-        throw new Error(
-          "error" in responseBody
-            ? responseBody.error
-            : "Unable to generate a background."
-        );
+      const responseBody = await readApiResponse<BackgroundGenerationResponse>(response, "Unable to generate a background.");
+      if (controller.signal.aborted || requestControllerRef.current !== controller) return;
+      if (typeof responseBody.dataUrl !== "string" || !responseBody.dataUrl.startsWith("data:image/")) {
+        throw new Error("The image provider returned an invalid background.");
       }
 
       setResult({

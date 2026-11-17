@@ -71,6 +71,40 @@ test("local director, timed captions, and audio replacement", async ({ page }) =
   expect(failures).toEqual([]);
 });
 
+test("large transcription uploads are split and caption times remain song-relative", async ({ page }) => {
+  test.setTimeout(120000);
+  const uploadSizes: number[] = [];
+  await page.route("**/api/audio/transcribe", async (route) => {
+    const request = route.request();
+    const form = await new Request("http://localhost", { method: "POST", headers: request.headers(),
+      body: new Uint8Array(request.postDataBuffer()!).buffer }).formData();
+    const file = form.get("audio") as File;
+    uploadSizes.push(file.size);
+    await route.fulfill({ json: { text: `Line ${uploadSizes.length}`, segments: [
+      { id: "cue", text: `Line ${uploadSizes.length}`, startSeconds: 1, endSeconds: 3 },
+    ], provider: "cloudflare", model: "test", transcriptId: "test" } });
+  });
+  await page.goto("/");
+  await expect(page.getByText("Loading saved project", { exact: true })).toHaveCount(0);
+  await page.locator('#editor-audio input[type="file"]').setInputFiles({ name: "Long.wav", mimeType: "audio/wav", buffer: audioFixture(260) });
+  await page.getByRole("tab", { name: "Captions", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Transcribe lyrics", exact: true })).toBeEnabled({ timeout: 60000 });
+  await page.getByRole("button", { name: "Transcribe lyrics", exact: true }).click();
+  await expect(page.getByLabel("Text", { exact: true })).toHaveCount(3, { timeout: 60000 });
+  expect(uploadSizes.every((size) => size < 4_000_000)).toBe(true);
+  await expect(page.getByLabel("Start (seconds)", { exact: true }).nth(2)).toHaveValue("181.00");
+});
+
+test("plain-text hosting errors show an actionable message", async ({ page }) => {
+  await page.route("**/api/audio/transcribe", (route) => route.fulfill({ status: 413, contentType: "text/plain", body: "Request Entity Too Large" }));
+  await page.goto("/");
+  await expect(page.getByText("Loading saved project", { exact: true })).toHaveCount(0);
+  await page.locator('#editor-audio input[type="file"]').setInputFiles({ name: "Track.wav", mimeType: "audio/wav", buffer: audioFixture() });
+  await page.getByRole("tab", { name: "Captions", exact: true }).click();
+  await page.getByRole("button", { name: "Transcribe lyrics", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "hosting service rejected" })).toBeVisible();
+});
+
 test("autosave writes only after edits, with manual save available", async ({ page }) => {
   await page.addInitScript(() => {
     const originalPut = IDBObjectStore.prototype.put;
